@@ -1,0 +1,18 @@
+{
+  "author": "TecnoSimples Tecnologia LTDA",
+  "gitHubUrl": "https://github.com/tecnosimples/hubitat_controlart",
+  "payPalUrl": "",
+  "packages": [
+    {
+      "name": "ControlArt 7Port",
+      "category": "Integrations",
+      "location": "https://raw.githubusercontent.com/tecnosimples/hubitat_controlart/main/packageManifest.json",
+      "description": "Integração local entre Hubitat e centrais ControlART (7Port, xPort, xBus, IR e RF). Produto licenciado TecnoSimples.",
+      "tags": [
+        "ControlART",
+        "Local",
+        "Integrations"
+      ]
+    }
+  ]
+}

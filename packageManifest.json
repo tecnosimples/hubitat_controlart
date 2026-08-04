@@ -1,0 +1,66 @@
+{
+  "packageName": "ControlArt 7Port",
+  "author": "TecnoSimples Tecnologia LTDA",
+  "version": "1.0.0",
+  "minimumHEVersion": "2.3.0",
+  "dateReleased": "2026-08-04",
+  "licenseFile": "https://raw.githubusercontent.com/tecnosimples/hubitat_controlart/main/LICENSE",
+  "drivers": [
+    {
+      "id": "062ca31f-ec5a-407f-8467-a2fe2d91148e",
+      "name": "ControlArt xPort Gateway",
+      "namespace": "tecnosimples",
+      "location": "https://raw.githubusercontent.com/tecnosimples/hubitat_controlart/main/drivers/ControlArt-Xport-Gateway.groovy",
+      "required": true
+    },
+    {
+      "id": "91cf4d47-94d0-4ab6-96b3-020e44bad56f",
+      "name": "ControlArt Xbus Relay",
+      "namespace": "tecnosimples",
+      "location": "https://raw.githubusercontent.com/tecnosimples/hubitat_controlart/main/drivers/ControlArt-Xbus-Relay.groovy",
+      "required": true
+    },
+    {
+      "id": "01f2c2c9-260a-4c12-be93-6013da9eec0d",
+      "name": "ControlArt Xbus Dimmer",
+      "namespace": "tecnosimples",
+      "location": "https://raw.githubusercontent.com/tecnosimples/hubitat_controlart/main/drivers/ControlArt-Xbus-Dimmer.groovy",
+      "required": true
+    },
+    {
+      "id": "85d06804-593b-40c6-9399-4c5f878a74d1",
+      "name": "ControlArt Ethernet Relay",
+      "namespace": "tecnosimples",
+      "location": "https://raw.githubusercontent.com/tecnosimples/hubitat_controlart/main/drivers/ControlArt-Ethernet-Relay.groovy",
+      "required": true
+    },
+    {
+      "id": "bacabaa5-9081-438a-8aea-c9755f31f354",
+      "name": "ControlArt Ethernet Dimmer",
+      "namespace": "tecnosimples",
+      "location": "https://raw.githubusercontent.com/tecnosimples/hubitat_controlart/main/drivers/ControlArt-Ethernet-Dimmer.groovy",
+      "required": true
+    },
+    {
+      "id": "4b426bb1-f150-4684-b128-9557e4ed1f6e",
+      "name": "ControlArt IR TV e Som",
+      "namespace": "tecnosimples",
+      "location": "https://raw.githubusercontent.com/tecnosimples/hubitat_controlart/main/drivers/ControlArt-IR-Remote.groovy",
+      "required": true
+    },
+    {
+      "id": "247b82ab-37db-4998-b597-fe3b85e71cbb",
+      "name": "ControlArt IR AC",
+      "namespace": "tecnosimples",
+      "location": "https://raw.githubusercontent.com/tecnosimples/hubitat_controlart/main/drivers/ControlArt-IR-AC.groovy",
+      "required": true
+    },
+    {
+      "id": "29922b52-a33a-4e29-b0d0-301371e58b5e",
+      "name": "ControlArt RF Cortinas",
+      "namespace": "tecnosimples",
+      "location": "https://raw.githubusercontent.com/tecnosimples/hubitat_controlart/main/drivers/ControlArt-RF-Cortinas.groovy",
+      "required": true
+    }
+  ]
+}
