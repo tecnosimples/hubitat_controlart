@@ -7,7 +7,7 @@
  *
  * Produto licenciado. Distribuido via Hubitat Package Manager.
  * Uso restrito ao hub licenciado. Ver LICENSE no repositorio.
- * Versao do pacote: 1.0.0 | library embutida: 1.15.0
+ * Versao do pacote: 1.0.1 | library embutida: 1.15.0
  */
  
 
@@ -1183,7 +1183,8 @@ if (clean) novos[key] = clean
 int gravados = novos.size()
 
 
-List<String> descartadas = ((state.codes instanceof Map) ? state.codes.keySet() : []) - novos.keySet()
+ 
+List<String> descartadas = new ArrayList<String>(((state.codes instanceof Map) ? state.codes.keySet() : []) - novos.keySet())
 state.codes = novos
 if (descartadas) logWarn("[CFG] Teclas antigas descartadas (não existem neste controle): ${descartadas.join(', ')} — se alguma foi colada à mão, recole com CodigoHEX.")
 caDropRelativoDuplicado()
