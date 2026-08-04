@@ -7,7 +7,7 @@
  *
  * Produto licenciado. Distribuido via Hubitat Package Manager.
  * Uso restrito ao hub licenciado. Ver LICENSE no repositorio.
- * Versao do pacote: 1.0.1 | library embutida: 1.15.0
+ * Versao do pacote: 1.0.2 | library embutida: 1.15.0
  */
  
 

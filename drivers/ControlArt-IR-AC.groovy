@@ -7,7 +7,7 @@
  *
  * Produto licenciado. Distribuido via Hubitat Package Manager.
  * Uso restrito ao hub licenciado. Ver LICENSE no repositorio.
- * Versao do pacote: 1.0.1 | library embutida: 1.15.0
+ * Versao do pacote: 1.0.2 | library embutida: 1.15.0
  */
  
 
@@ -966,6 +966,10 @@ import groovy.json.JsonOutput
 
 
 @Field static final Map<String, String> IRWEB_AC = [
+
+
+
+"off": "poweroff", "on": "poweron",
 "poweroff": "poweroff", "poweron": "poweron", "on/off": "onoff", "i/o": "io",
 "auto": "auto", "heat": "heat", "cool": "cool", "fan": "fan", "dry": "dry",
 "setautocool": "setautocool",
@@ -1178,7 +1182,13 @@ fonte.each { rawName, code ->
 String key = caMapName(rawName.toString())
 if (!key) { if (code) desconhecidas << rawName.toString(); return }
 String clean = code ? caCleanIrCode(key, code.toString()) : null
-if (clean) novos[key] = clean
+if (clean) {
+
+
+
+if (novos.containsKey(key)) logWarn("[CFG] '${rawName}' cai em '${key}', que outra tecla deste controle já preencheu — fica a última lida. Confira com listCodes.")
+novos[key] = clean
+}
 }
 int gravados = novos.size()
 
