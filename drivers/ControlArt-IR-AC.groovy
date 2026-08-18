@@ -7,9 +7,17 @@
  *
  * Produto licenciado. Distribuido via Hubitat Package Manager.
  * Uso restrito ao hub licenciado. Ver LICENSE no repositorio.
- * Versao do pacote: 1.0.2 | library embutida: 1.15.0
+ * Versao do pacote: 1.0.3 | library embutida: 1.16.0
  */
  
+
+
+
+
+
+
+
+
 
 
 
@@ -322,13 +330,18 @@ import java.util.concurrent.ConcurrentHashMap
 
 
 @Field static final Integer CA_RECONNECT_MAX = 60
+
+
+
+
+@Field static final Integer CA_IDLE_CLOSE_SEC = 5
 @Field static final Integer CA_RX_BUF_MAX = 8192 
  
 @Field static final String CA_WM = "HPM"
  
 @Field static final Boolean CA_WM_POR_HUB = true
  
-@Field static final String CA_LIB_VER = "1.15.0"
+@Field static final String CA_LIB_VER = "1.16.0"
 private String caDevKey() { return device.id as String }
  
 private String caWmEnviado(String uid) {
@@ -361,7 +374,11 @@ if (state.caRequiresRx != true) {
 state.caRetries = 0
 caSetBoardStatus("online")
 }
-runIn(caHbSec(), "caHeartbeat")
+
+
+
+if (caTransiente()) runIn(CA_IDLE_CLOSE_SEC, "caCloseIdle")
+else runIn(caHbSec(), "caHeartbeat")
 caAfterConnect()
 } catch (Exception e) {
 int tries = ((state.caRetries ?: 0) as int) + 1
@@ -407,9 +424,52 @@ CA_RX_BUF.remove(caDevKey())
 
 
  
+ 
+private boolean caTransiente() { return settings?.tcpTransiente == true }
+ 
+private Boolean caAbrirTransiente() {
+String ip = (settings.device_IP_address ?: "").trim()
+if (!ip || !settings.device_port) {
+logError("[TCP] IP/porta não configurados — salve as Preferences.")
+caSetBoardStatus("offline")
+return false
+}
+try {
+interfaces.rawSocket.connect(ip, (settings.device_port as Integer))
+state.caLinkDown = false
+state.caIntentionalClose = false
+state.caLastRx = now()
+caSetBoardStatus("online") 
+logDebug("[TCP] Socket transitório aberto em ${ip}:${settings.device_port}")
+return true
+} catch (Exception e) {
+logWarn("[TCP] Conexão transitória falhou: ${e.message} — nada foi ao fio.")
+caSetBoardStatus("offline")
+state.caLinkDown = true
+return false
+}
+}
+ 
+def caCloseIdle() {
+
+
+if (!caTransiente()) return
+state.caIntentionalClose = true
+state.caLinkDown = true
+try { interfaces.rawSocket.close() } catch (Exception ignored) { }
+CA_RX_BUF.put(caDevKey(), "")
+logDebug("[TCP] Socket transitório fechado (ocioso ${CA_IDLE_CLOSE_SEC}s).")
+}
+
+
+
+ 
 private int caHbSec() { return Math.max(5, Math.min(300, (settings?.hbInterval ?: CA_HB_DEFAULT_SEC) as int)) }
  
 def caHeartbeat() {
+
+
+if (caTransiente()) { logDebug("[HEARTBEAT] modo transitório — desarmado"); return }
 runIn(caHbSec(), "caHeartbeat")
 long idleMs = now() - ((state.caLastRx ?: 0L) as long)
 
@@ -467,6 +527,9 @@ private Boolean caSendWire(String cmd) {
 
 
 
+
+
+if (caTransiente() && state.caLinkDown != false && !caAbrirTransiente()) return false
 if (state.caLinkDown == true) {
 logWarn("[TX] '${cmd}' NÃO enviado — sem link com a central (nada foi ao fio).")
 
@@ -477,6 +540,8 @@ return false
 try {
 logDebug("[TX] ${cmd}")
 interfaces.rawSocket.sendMessage(cmd + "\r\n")
+
+if (caTransiente()) runIn(CA_IDLE_CLOSE_SEC, "caCloseIdle")
 return true
 } catch (Exception e) {
 
@@ -575,6 +640,11 @@ catch (Exception e) { logError("[RX] handleLine falhou em '${line}': ${e.message
  
 def socketStatus(String status) {
 logDebug("[SOCKET] ${status}")
+
+
+
+
+if (caTransiente()) { state.caLinkDown = true; return }
 if (state.caIntentionalClose == true) {
 logDebug("[SOCKET] fechamento intencional — sem reconexão concorrente")
 return

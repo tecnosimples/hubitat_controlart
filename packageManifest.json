@@ -1,9 +1,9 @@
 {
   "packageName": "ControlArt 7Port",
   "author": "TecnoSimples Tecnologia LTDA",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "minimumHEVersion": "2.3.0",
-  "dateReleased": "2026-08-04",
+  "dateReleased": "2026-08-18",
   "licenseFile": "https://raw.githubusercontent.com/tecnosimples/hubitat_controlart/main/LICENSE",
   "drivers": [
     {
