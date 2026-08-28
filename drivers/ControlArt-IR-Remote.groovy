@@ -7,350 +7,23 @@
  *
  * Produto licenciado. Distribuido via Hubitat Package Manager.
  * Uso restrito ao hub licenciado. Ver LICENSE no repositorio.
- * Versao do pacote: 1.0.3 | library embutida: 1.16.0
+ * Versao do pacote: 1.0.4 | library embutida: 1.17.0
  */
- 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import groovy.transform.Field
 import java.util.concurrent.ConcurrentHashMap
-
-
-
- 
 @Field static ConcurrentHashMap<String, String> CA_RX_BUF = new ConcurrentHashMap<String, String>()
 @Field static ConcurrentHashMap<String, Object> CA_RX_LOCK = new ConcurrentHashMap<String, Object>()
 @Field static final Integer CA_HB_DEFAULT_SEC = 30 
-
-
-
-
-
-
-
 @Field static final Integer CA_RECONNECT_MAX = 60
-
-
-
-
 @Field static final Integer CA_IDLE_CLOSE_SEC = 5
 @Field static final Integer CA_RX_BUF_MAX = 8192 
- 
 @Field static final String CA_WM = "HPM"
- 
 @Field static final Boolean CA_WM_POR_HUB = true
- 
-@Field static final String CA_LIB_VER = "1.16.0"
+@Field static final String CA_LIB_VER = "1.17.0"
 private String caDevKey() { return device.id as String }
- 
 private String caWmEnviado(String uid) {
 return (CA_WM_POR_HUB && uid) ? "${CA_WM}-${uid}" : CA_WM
 }
-
-
-
- 
 def caConnect() {
 unschedule("caWatchdog") 
 unschedule("caHeartbeat") 
@@ -367,16 +40,10 @@ state.caLastRx = now()
 state.caSeenRx = false 
 state.caIntentionalClose = false
 state.caLinkDown = false 
-
-
-
 if (state.caRequiresRx != true) {
 state.caRetries = 0
 caSetBoardStatus("online")
 }
-
-
-
 if (caTransiente()) runIn(CA_IDLE_CLOSE_SEC, "caCloseIdle")
 else runIn(caHbSec(), "caHeartbeat")
 caAfterConnect()
@@ -387,32 +54,18 @@ int delay = Math.min(30 * tries, CA_RECONNECT_MAX)
 logWarn("[TCP] Conexão falhou (tentativa ${tries}): ${e.message} — nova tentativa em ${delay}s")
 caSetBoardStatus("offline")
 state.caLinkDown = true 
-
-
-
-
 state.caIntentionalClose = false
 runIn(delay, "caReconnectKick") 
 return 
 }
-
-
-
-
 try {
 caLicSchedule()
-
-
-
-
 if (!caLicOk()) runIn(5 + (caLicJitter() % 55), "caLicCheckNow")
 } catch (Exception e) {
 logWarn("[LICENÇA] Agendamento pós-conexão falhou (${e.message}) — link intacto.")
 }
 }
- 
 def caReconnectKick() { caConnect() }
- 
 def caDisconnect() {
 unschedule("caWatchdog")
 unschedule("caHeartbeat")
@@ -420,13 +73,7 @@ unschedule("caReconnectKick")
 try { interfaces.rawSocket.close() } catch (Exception ignored) { }
 CA_RX_BUF.remove(caDevKey())
 }
-
-
-
- 
- 
 private boolean caTransiente() { return settings?.tcpTransiente == true }
- 
 private Boolean caAbrirTransiente() {
 String ip = (settings.device_IP_address ?: "").trim()
 if (!ip || !settings.device_port) {
@@ -449,10 +96,7 @@ state.caLinkDown = true
 return false
 }
 }
- 
 def caCloseIdle() {
-
-
 if (!caTransiente()) return
 state.caIntentionalClose = true
 state.caLinkDown = true
@@ -460,20 +104,11 @@ try { interfaces.rawSocket.close() } catch (Exception ignored) { }
 CA_RX_BUF.put(caDevKey(), "")
 logDebug("[TCP] Socket transitório fechado (ocioso ${CA_IDLE_CLOSE_SEC}s).")
 }
-
-
-
- 
 private int caHbSec() { return Math.max(5, Math.min(300, (settings?.hbInterval ?: CA_HB_DEFAULT_SEC) as int)) }
- 
 def caHeartbeat() {
-
-
 if (caTransiente()) { logDebug("[HEARTBEAT] modo transitório — desarmado"); return }
 runIn(caHbSec(), "caHeartbeat")
 long idleMs = now() - ((state.caLastRx ?: 0L) as long)
-
-
 if (state.caRequiresRx == true && state.caSeenRx != true && idleMs > caHbSec() * 3000L) {
 caCaseCTrip(idleMs)
 return
@@ -490,14 +125,10 @@ return
 logDebug("[HEARTBEAT] Link quieto — poll: ${poll}")
 caSendRaw(poll)
 }
- 
 private void caCaseCTrip(long idleMs) {
 unschedule("caHeartbeat") 
-
-
 unschedule("caReconnectKick")
 state.caIntentionalClose = true 
-
 int tries = ((state.caRetries ?: 0) as int) + 1
 state.caRetries = tries
 caSetBoardStatus("offline")
@@ -508,47 +139,27 @@ logWarn("[TCP] Conectado mas SEM resposta há ${(long)(idleMs / 1000)}s — a ce
 "no teto de sessões TCP (a 11ª conecta e fica muda). Nova tentativa em ${delay}s.")
 runIn(delay, "caReconnectKick")
 }
- 
 void caProbeGatewayPoll() {
 state.caGwPollable = false
 caSendRaw("getdevices")
 }
-
-
-
- 
 private boolean caPollPermitido(String cmd) {
 if (cmd == "getdevices" || cmd == "get_firmware_version") return true
 return cmd ==~ /^mdcmd_getmd,\d{1,3},\d{1,3},\d{1,3}$/
 }
- 
 private Boolean caSendWire(String cmd) {
-
-
-
-
-
-
 if (caTransiente() && state.caLinkDown != false && !caAbrirTransiente()) return false
 if (state.caLinkDown == true) {
 logWarn("[TX] '${cmd}' NÃO enviado — sem link com a central (nada foi ao fio).")
-
-
 if (state.caIntentionalClose != true) runIn(1, "caReconnectKick")
 return false
 }
 try {
 logDebug("[TX] ${cmd}")
 interfaces.rawSocket.sendMessage(cmd + "\r\n")
-
 if (caTransiente()) runIn(CA_IDLE_CLOSE_SEC, "caCloseIdle")
 return true
 } catch (Exception e) {
-
-
-
-
-
 if (state.caIntentionalClose == true) {
 logDebug("[TX] Envio descartado — socket fechado de propósito (backoff do Caso C em andamento)")
 return false
@@ -559,7 +170,6 @@ runIn(5, "caReconnectKick")
 return false
 }
 }
- 
 private Boolean caSendRaw(String cmd) {
 String c = (cmd ?: "").trim()
 if (!caPollPermitido(c)) {
@@ -568,30 +178,16 @@ return false
 }
 return caSendWire(c)
 }
- 
 Boolean caSend(String cmd) {
 if (!cmd?.trim()) { logWarn("[TX] Comando vazio ignorado."); return false }
-
-
 if (!caLicOk()) {
 logWarn("[LICENÇA] Comando '${cmd.trim()}' BLOQUEADO — ${caLicTexto(caLicCache())}. HubUID: ${caHubUID()}")
 caLicPublicar()
-
-
-
-
-
-
-
 runIn(5 + (caLicJitter() % 55), "caLicCheckNow")
 return false
 }
 return caSendWire(cmd.trim())
 }
-
-
-
- 
 def parse(String msg) {
 state.caLastRx = now()
 if (state.caSeenRx != true) { state.caSeenRx = true; state.caRetries = 0 }
@@ -627,8 +223,6 @@ if (line.equalsIgnoreCase("Parse Error!") || line.equalsIgnoreCase("Parse Error"
 logWarn("[RX] Placa respondeu 'Parse Error!' (comando anterior inválido?)")
 return
 }
-
-
 if (line == "endlistdevices" || line.startsWith("device,")) {
 if (!state.caGwPollable) { state.caGwPollable = true; logInfo("[TCP] Gateway responde getdevices → keepalive ativo") }
 return
@@ -637,13 +231,8 @@ try { handleLine(line) }
 catch (Exception e) { logError("[RX] handleLine falhou em '${line}': ${e.message}") }
 }
 }
- 
 def socketStatus(String status) {
 logDebug("[SOCKET] ${status}")
-
-
-
-
 if (caTransiente()) { state.caLinkDown = true; return }
 if (state.caIntentionalClose == true) {
 logDebug("[SOCKET] fechamento intencional — sem reconexão concorrente")
@@ -657,36 +246,21 @@ state.caLinkDown = true
 runIn(5, "caReconnectKick")
 }
 }
-
-
-
- 
 void caSetBoardStatus(String newStatus) {
 if (((device.currentValue("boardstatus") ?: "") as String) == newStatus) return
 sendEvent(name: "boardstatus", value: newStatus, descriptionText: "${device.displayName} ${newStatus}")
 logInfo("[STATUS] boardstatus → ${newStatus}")
 }
-
-
-
- 
-
-
-
-
 private String caLicEndpoint() { return "https://script.google.com/macros/s/AKfycbwvNpGsy-9Xs4NRk6eer3HRZBXbkfhHJtqp23aIZJA1KBZJUJZ0OJnQvJ6PF36kcHjl/exec" }
- 
 private String caHubUID() {
 try { String v = location.hub.zigbeeEui?.toString(); if (v) return v } catch (Exception ignored) { }
 return null
 }
- 
 private String caLicDateStr(long ms) {
 def sdf = new java.text.SimpleDateFormat("yyyy-MM-dd")
 sdf.setTimeZone(TimeZone.getTimeZone("UTC"))
 return sdf.format(new Date(ms))
 }
- 
 private boolean caLicEvaluate(Map st, long nowMs) {
 String uid = caHubUID()
 if (!uid) return false 
@@ -697,7 +271,6 @@ if (!expiry) return false
 long maxSeen = (st.maxSeen ?: 0L) as long
 return caLicDateStr(Math.max(nowMs, maxSeen)) <= expiry
 }
- 
 private Map caLicApplyCheck(Map st, Map resposta, long nowMs) {
 String uid = caHubUID()
 long maxSeen = Math.max((st?.maxSeen ?: 0L) as long, nowMs)
@@ -711,15 +284,12 @@ return [uid: uid, status: (resposta.status ?: "notfound") as String,
 expiry: (resposta.expiry ?: "") as String,
 lastCheck: nowMs, maxSeen: maxSeen]
 }
- 
 private Map caLicCache() {
 return (atomicState.lic instanceof Map) ? (Map) atomicState.lic : null
 }
- 
 private boolean caLicOk() {
 return caLicEvaluate(caLicCache(), now())
 }
- 
 private String caLicTexto(Map st) {
 if (!caHubUID()) return "sem identidade — hub sem zigbeeEui"
 if (!st) return "aguardando primeira verificação"
@@ -730,12 +300,10 @@ return (st.status == "trial") ? "trial — vence ${st.expiry}" : "ativa"
 }
 return "inativa — fale com a TecnoSimples"
 }
- 
 private void caLicPublicar() {
 sendEvent(name: "hubUID", value: (caHubUID() ?: "sem identidade"))
 sendEvent(name: "licenca", value: caLicTexto(caLicCache()))
 }
- 
 def caLicCheckNow() {
 String uid = caHubUID()
 if (!uid) { logError("[LICENÇA] Hub sem zigbeeEui — sem identidade."); caLicPublicar(); return }
@@ -753,12 +321,6 @@ logWarn("[LICENÇA] Consulta falhou (${e.message}) — mantendo última validaç
 }
 boolean antes = caLicOk()
 atomicState.lic = caLicApplyCheck(caLicCache(), resposta, now())
-
-
-
-
-
-
 if (!antes && caLicOk() && state.caLinkDown != true) {
 logInfo("[LICENÇA] Liberada — repetindo o bootstrap pós-conexão.")
 try { caAfterConnect() } catch (Exception e) { logWarn("[LICENÇA] caAfterConnect falhou: ${e.message}") }
@@ -766,22 +328,17 @@ try { caAfterConnect() } catch (Exception e) { logWarn("[LICENÇA] caAfterConnec
 caLicPublicar()
 logInfo("[LICENÇA] ${caLicTexto(caLicCache())} (HubUID ${uid})")
 }
- 
 private long caLicJitter() { return (device.id as long) }
- 
 void caLicSchedule() {
 long j = caLicJitter()
-schedule("${j % 60} ${7 + (j % 5)} 3 * * ?", "caLicDaily")
+schedule("${j % 60} ${7 + (j % 5)} 3/6 * * ?", "caLicDaily")
 }
 def caLicDaily() {
 long last = (caLicCache()?.lastCheck ?: 0L) as long
-if ((now() - last) >= 4 * 86400_000L) caLicCheckNow()
+long limite = caLicOk() ? 4 * 86400_000L : 6 * 3600_000L
+if ((now() - last) >= limite) caLicCheckNow()
 }
- 
 void verificarLicenca() { logInfo("[LICENÇA] Verificação manual — HubUID: ${caHubUID()}"); caLicCheckNow() }
-
-
-
 void logDebug(String msg) { if (settings.logEnable) log.debug "${device.displayName}: ${msg}" }
 void logInfo(String msg) { log.info "${device.displayName}: ${msg}" }
 void logWarn(String msg) { log.warn "${device.displayName}: ${msg}" }
@@ -790,32 +347,14 @@ def logsOff() {
 log.warn "${device.displayName}: debug desativado automaticamente"
 device.updateSetting("logEnable", [value: "false", type: "bool"])
 }
- 
 void caScheduleLogsOff() {
 if (settings.logEnable) runIn(1800, "logsOff")
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 @Field static final Integer CA_ARTIFACT_MAX = 3
-
-
 @Field static final String CA_SEP_DEV = " @ "
- 
 String caNormKey(String raw) {
 return (raw ?: "").trim().toLowerCase().replaceAll("\\s+", "")
 }
- 
 Map caLerArtefato(String nome) {
 String n = (nome ?: "").trim()
 if (!n) throw new IllegalStateException("nenhum arquivo de import configurado")
@@ -842,11 +381,9 @@ if (!(art.gateways instanceof List) || !art.gateways) throw new IllegalStateExce
 "'${n}' não tem nenhuma central em 'gateways'")
 return art
 }
- 
 Map caCasarDispositivo(Map art, String pref) {
 String p = (pref ?: "").trim()
 if (!p) throw new IllegalStateException("preencha 'Dispositivo no projeto'")
- 
 List todos = []
 ((art?.gateways ?: []) as List).each { gw ->
 ((gw?.irrf ?: []) as List).each { b ->
@@ -879,7 +416,6 @@ throw new IllegalStateException(
 "'${p}' casa com ${casam.size()} dispositivos — use a forma qualificada. Opções: " +
 casam.collect { "${(it.dev ?: '')}${CA_SEP_DEV}${(it.room ?: '')}" }.join(' | '))
 }
- 
 String caIpDoProjeto(Map bloco, Boolean aplicar) {
 String doArq = ((bloco?.gwIp ?: "") as String).trim()
 if (!doArq) return null
@@ -897,7 +433,6 @@ if (meu == doArq) return null
 return ("o projeto diz que '${bloco?.dev}' emite por ${doArq}, este device está em ${meu} " +
 "— confira qual é o certo (código certo pela central errada não dá erro)").toString()
 }
- 
 Map caResolverImport(List cmds, List alvos, Map ptbr, Closure extra) {
 Map porTecla = [:]
 List naoCasou = []
@@ -927,7 +462,6 @@ else conflitos[tecla] = (itens as List).collect { it.alias }
 }
 return [grava: grava, conflitos: conflitos, naoCasou: naoCasou, foraDoAlvo: foraDoAlvo]
 }
- 
 Map caImportarDoProjeto(List alvos, Map ptbr, Closure extra, Closure ler, Closure gravar) {
 Map bloco
 try {
@@ -939,14 +473,11 @@ sendEvent(name: "importStatus", value: "erro")
 sendEvent(name: "importDetail", value: e.message)
 return [erro: e.message]
 }
- 
 String avisoIp = caIpDoProjeto(bloco, true)
 if (avisoIp) logWarn("[PROJETO] ${avisoIp}")
 Map r = caResolverImport((bloco.cmds ?: []) as List, alvos, ptbr, extra)
 Integer div = 0
-
 ((r.grava ?: [:]) as Map).each { k, v -> gravar(k, v) }
- 
 List<String> conflitosDetalhe = []
 ((r.conflitos ?: [:]) as Map).each { k, aliases ->
 div++
@@ -964,7 +495,6 @@ logError("[IMPORT] BUG de tabela: '${it}' aponta para uma tecla que este driver 
 }
 Integer n = ((r.grava ?: [:]) as Map).size()
 List naoCasou = (r.naoCasou ?: []) as List
- 
 List semOrigem = (alvos as List).findAll {
 ler(it) && !((r.grava ?: [:]) as Map).containsKey(it) &&
 !((r.conflitos ?: [:]) as Map).containsKey(it)
@@ -980,7 +510,6 @@ sendEvent(name: "importDetail", value: detalhe)
 sendEvent(name: "divergencias", value: div)
 return [importadas: n, divergencias: div, naoCasou: naoCasou, semOrigem: semOrigem]
 }
- 
 Integer caConferirProjetoIrrf(List alvos, Map ptbr, Closure extra, Closure ler) {
 Map bloco
 try {
@@ -994,7 +523,6 @@ return -1
 Map r = caResolverImport((bloco.cmds ?: []) as List, alvos, ptbr, extra)
 Integer div = 0
 List<String> achados = []
- 
 String avisoIp = caIpDoProjeto(bloco, false)
 if (avisoIp) { div++; achados << avisoIp }
 ((r.grava ?: [:]) as Map).each { k, v ->
@@ -1014,7 +542,6 @@ div++
 logError("[CONFERIR] BUG de tabela: '${it}' aponta para uma tecla que este driver não tem. " +
 "Reporte — é erro de código, não do seu projeto.")
 }
- 
 ((alvos as List).findAll {
 ler(it) && !((r.grava ?: [:]) as Map).containsKey(it) &&
 !((r.conflitos ?: [:]) as Map).containsKey(it)
@@ -1030,7 +557,6 @@ achados.each { logWarn("[CONFERIR] ${it}") }
 return div
 }
 import groovy.transform.Field
-
 @Field static final Map<Integer, String> BTN = [
 0: "poweroff", 1: "poweron", 2: "mute", 3: "source", 4: "back", 5: "menu",
 6: "hdmi1", 7: "hdmi2", 8: "up", 9: "down", 10: "right", 11: "left",
@@ -1045,11 +571,6 @@ import groovy.transform.Field
 50: "play", 51: "pause", 52: "next", 53: "guide", 54: "info",
 55: "tools", 56: "smarthub", 57: "prevchannel"
 ]
-
-
-
-
-
 @Field static final Map<String, String> IRWEB_TV = [
 "off": "poweroff", "on": "poweron", "power": "powertoggle",
 "mute": "mute", "source": "source", "input": "source", "menu": "menu",
@@ -1080,7 +601,6 @@ import groovy.transform.Field
 "guide", "info", "tools", "smarthub", "prevchannel", "channellist",
 "netflix", "amazon", "youtube"
 ]
-
 @Field static final Map<String, String> PTBR_ALIAS = [
 "ligar": "poweron", "liga": "poweron", "acender": "poweron",
 "desligar": "poweroff", "desliga": "poweroff", "apagar": "poweroff",
@@ -1095,7 +615,6 @@ import groovy.transform.Field
 "tocar": "play", "pausar": "pause", "parar": "stop",
 "avancar": "fastforward", "retroceder": "rewind", "guia": "guide"
 ]
-
 @Field static final Integer MAX_TOUCHES = 25
 metadata {
 definition(
@@ -1122,10 +641,6 @@ command "clearCodes"
 command "sendKey", [[name: "Tecla*", type: "ENUM", constraints: ALL_KEYS]]
 command "setMuteState", [[name: "Estado*", type: "ENUM", constraints: ["muted", "unmuted"], description: "Re-sincroniza o mute otimista (sem emitir IR) após uso do controle físico"]]
 command "reconnect"
-
-
-
-
 command "arrowUp"; command "arrowDown"; command "arrowLeft"; command "arrowRight"
 command "enter"; command "confirm"; command "exit"; command "Return"
 command "back"; command "home"; command "menu"; command "guide"
@@ -1182,9 +697,6 @@ input name: "logEnable", type: "bool", title: "Ativar logs de debug (auto-off 30
 }
 }
 }
-
-
-
 def installed() {
 log.info "[IR] Instalado: ${device.displayName}"
 sendEvent(name: "numberOfButtons", value: 57)
@@ -1203,16 +715,9 @@ caConnect()
 }
 def uninstalled() { caDisconnect() }
 def reconnect() { caConnect() }
- 
 def refresh() { logInfo("[IR] Gateway silencioso — estado da conexão via socketStatus/envios.") }
-
 void caAfterConnect() { caProbeGatewayPoll() } 
-
-
 String caPollCommand() { return null }
-
-
-
 def CodigoHEX(String tecla, String hexcode) {
 if (!(state.codes instanceof Map)) state.codes = [:]
 state.codes[tecla] = (hexcode ?: "").trim() 
@@ -1227,14 +732,11 @@ Map codes = (state.codes instanceof Map) ? state.codes : [:]
 String resumo = ALL_KEYS.collect { k -> "${k}: ${codes[k] ? 'OK' : '—'}" }.join(" | ")
 log.info "${device.displayName}: [CFG] ${resumo}"
 }
- 
- 
 private String caMapName(String rawName) {
 String n = caNormKey(rawName)
 if (n ==~ /\d/) return "num${n}"
 return IRWEB_TV[n]
 }
- 
 private Map caSourceKeys(def data) {
 if (data?.commands instanceof Map && data.commands) return data.commands
 Map out = [:]
@@ -1243,7 +745,6 @@ data.functions.each { f -> if (f instanceof Map && f.name != null) out[f.name.to
 }
 return out
 }
- 
 def GetRemoteDATA() {
 String url = (settings.webserviceurl ?: "").trim()
 if (!url) { logWarn("[CFG] URL do ir.molsmart não configurada."); return }
@@ -1262,19 +763,11 @@ String key = caMapName(rawName.toString())
 if (!key) { if (code) desconhecidas << rawName.toString(); return }
 String clean = code ? caCleanIrCode(key, code.toString()) : null
 if (clean) {
-
-
-
 if (novos.containsKey(key)) logWarn("[CFG] '${rawName}' cai em '${key}', que outra tecla deste controle já preencheu — fica a última lida. Confira com listCodes.")
 novos[key] = clean
 }
 }
 int gravados = novos.size()
-
-
-
-
- 
 List<String> descartadas = new ArrayList<String>(((state.codes instanceof Map) ? state.codes.keySet() : []) - novos.keySet())
 state.codes = novos
 if (descartadas) logWarn("[CFG] Teclas antigas descartadas (não existem neste controle): ${descartadas.join(', ')} — se alguma foi colada à mão, recole com CodigoHEX.")
@@ -1287,7 +780,6 @@ if (desconhecidas) logWarn("[CFG] Teclas com código que este driver não conhec
 logError("[CFG] Falha ao importar controle: ${e.message}")
 }
 }
- 
 private String caCleanIrCode(String key, String raw) {
 String code = (raw ?: "").trim()
 if (!code) return null
@@ -1303,11 +795,6 @@ return code + ",768"
 }
 return code
 }
-
-
-
-
-
 def on() {
 if (sendKey("poweron")) {
 sendEvent(name: "switch", value: "on")
@@ -1337,11 +824,6 @@ String key = BTN[n]
 if (!key) { logWarn("[BTN] Botão ${n} sem tecla mapeada (ver tabela no cabeçalho)"); return }
 sendKey(key)
 }
-
-
-
-
-
 def arrowUp() { sendKey("up") }
 def arrowDown() { sendKey("down") }
 def arrowLeft() { sendKey("left") }
@@ -1382,7 +864,6 @@ def num6() { sendKey("num6") }; def num7() { sendKey("num7") }; def num8() { sen
 def num9() { sendKey("num9") }
 def btnA() { sendKey("btnA") }; def btnB() { sendKey("btnB") }
 def btnC() { sendKey("btnC") }; def btnD() { sendKey("btnD") }
- 
 def appOpenByName(String appName) {
 String key = (appName ?: "").toLowerCase().trim()
 if (key == "prime video" || key == "prime") key = "amazon"
@@ -1392,11 +873,9 @@ return
 }
 sendKey(key)
 }
- 
 def setPictureMode(mode) { logWarn("[TV] setPictureMode não existe por IR — ignorado (${mode})") }
 def setSoundMode(mode) { logWarn("[TV] setSoundMode não existe por IR — ignorado (${mode})") }
 def showMessage(a, b, c, d) { logWarn("[TV] showMessage não existe por IR — ignorado") }
- 
 private Boolean caTxKey(String tecla) {
 String code = (state.codes instanceof Map) ? state.codes[tecla] : null
 if (!code) {
@@ -1412,14 +891,12 @@ if (ok) runIn(6, "ackTimeout")
 else state.waitingAck = false
 return ok
 }
- 
 Boolean sendKey(String tecla) {
 caVolCancel(null)
 Boolean ok = caTxKey(tecla)
 sendEvent(name: "lastCommandStatus", value: ok ? "enviado: ${tecla}" : "falha de envio: ${tecla}")
 return ok
 }
- 
 def ackTimeout() {
 if (((state.volPending ?: 0) as int) > 0) { 
 logWarn("[VOL] Fila de volume sem confirmação (6s) — cancelando o restante.")
@@ -1431,19 +908,13 @@ sendEvent(name: "lastCommandStatus", value: "sem confirmação (completeir não 
 logWarn("[IR] Gateway não confirmou o último sendir — verifique canal/emissor.")
 }
 }
-
-
-
- 
 private int caVolStep() { return Math.max(1, Math.min(10, (settings?.volumeStep ?: 2) as int)) }
- 
 private void caVolBaseline() {
 if (device.currentValue("volume") == null) sendEvent(name: "volume", value: 50)
 if (device.currentValue("mute") == null) sendEvent(name: "mute", value: "unmuted")
 }
 def volumeUp() { caVolManualStep("volup") }
 def volumeDown() { caVolManualStep("voldown") }
- 
 private void caVolManualStep(String key) {
 caVolCancel(null)
 if (caTxKey(key)) {
@@ -1453,7 +924,6 @@ sendEvent(name: "volume", value: (key == "volup") ? Math.min(100, cur + step) : 
 sendEvent(name: "lastCommandStatus", value: "enviado: ${key}")
 }
 }
- 
 def setVolume(volumelevel) {
 Integer target
 try { target = Math.max(0, Math.min(100, volumelevel as int)) }
@@ -1470,7 +940,6 @@ state.volPending = touches
 if (touches < want) logWarn("[VOL] setVolume(${target}) limitado a ${touches} toques (MAX_TOUCHES=${MAX_TOUCHES}) — repita se precisar de mais.")
 caVolDispatch()
 }
- 
 private void caVolDispatch() {
 if (((state.volPending ?: 0) as int) <= 0) { caVolCancel(null); return }
 state.volGen = ((state.volGen ?: 0) as int) + 1
@@ -1479,13 +948,11 @@ int gen = state.volGen as int
 if (!caTxKey(state.volKey)) { logWarn("[VOL] Falha ao enviar toque — cancelando fila."); caVolCancel(null); return }
 runInMillis(800, "caVolTick", [data: [gen: gen]])
 }
- 
 def caVolTick(Map data) {
 if (!state.volInFlight) return
 if ((data?.gen as Integer) != (state.volGen as Integer)) return
 caVolAdvance(true)
 }
- 
 private void caVolAdvance(boolean viaTimer) {
 if (!state.volInFlight) return
 state.volInFlight = false
@@ -1502,7 +969,6 @@ state.volPending = 0
 unschedule("ackTimeout") 
 }
 }
- 
 private void caVolCancel(String reason) {
 if (((state.volPending ?: 0) as int) > 0 && reason) logWarn("[VOL] Fila cancelada: ${reason}")
 state.volPending = 0
@@ -1510,9 +976,6 @@ state.volInFlight = false
 state.volStaleAcks = 0
 unschedule("caVolTick")
 }
-
-
-
 def mute() { caSetMute("muted") }
 def unmute() { caSetMute("unmuted") }
 private void caSetMute(String target) {
@@ -1531,20 +994,14 @@ logWarn("[VOL] 'mute' é toggle — otimista pode dessincronizar do controle fí
 logWarn("[VOL] Sem código de mute (mute/muteon/muteoff) configurado.")
 }
 }
- 
 def setMuteState(String estado) {
 if (estado in ["muted", "unmuted"]) { sendEvent(name: "mute", value: estado); logInfo("[VOL] mute re-sincronizado: ${estado}") }
 else logWarn("[VOL] setMuteState inválido: ${estado}")
 }
-
-
-
 void handleLine(String line) {
 if (line.startsWith("completeir")) {
 state.waitingAck = false
 unschedule("ackTimeout")
-
-
 if (((state.volStaleAcks ?: 0) as int) > 0) {
 state.volStaleAcks = ((state.volStaleAcks as int) - 1)
 return
@@ -1557,10 +1014,6 @@ sendEvent(name: "lastCommandStatus", value: "confirmado")
 logDebug("[RX] IR confirmado pelo gateway")
 return
 }
-
-
-
-
 if (line.toLowerCase().contains("command error")) { 
 state.waitingAck = false
 unschedule("ackTimeout")
@@ -1579,9 +1032,6 @@ return
 }
 logDebug("[RX] Linha não tratada: ${line}")
 }
-
-
-
 def importarDoProjeto() {
 caImportarDoProjeto(
 ALL_KEYS, PTBR_ALIAS,

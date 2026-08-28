@@ -7,350 +7,23 @@
  *
  * Produto licenciado. Distribuido via Hubitat Package Manager.
  * Uso restrito ao hub licenciado. Ver LICENSE no repositorio.
- * Versao do pacote: 1.0.3 | library embutida: 1.16.0
+ * Versao do pacote: 1.0.4 | library embutida: 1.17.0
  */
- 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import groovy.transform.Field
 import java.util.concurrent.ConcurrentHashMap
-
-
-
- 
 @Field static ConcurrentHashMap<String, String> CA_RX_BUF = new ConcurrentHashMap<String, String>()
 @Field static ConcurrentHashMap<String, Object> CA_RX_LOCK = new ConcurrentHashMap<String, Object>()
 @Field static final Integer CA_HB_DEFAULT_SEC = 30 
-
-
-
-
-
-
-
 @Field static final Integer CA_RECONNECT_MAX = 60
-
-
-
-
 @Field static final Integer CA_IDLE_CLOSE_SEC = 5
 @Field static final Integer CA_RX_BUF_MAX = 8192 
- 
 @Field static final String CA_WM = "HPM"
- 
 @Field static final Boolean CA_WM_POR_HUB = true
- 
-@Field static final String CA_LIB_VER = "1.16.0"
+@Field static final String CA_LIB_VER = "1.17.0"
 private String caDevKey() { return device.id as String }
- 
 private String caWmEnviado(String uid) {
 return (CA_WM_POR_HUB && uid) ? "${CA_WM}-${uid}" : CA_WM
 }
-
-
-
- 
 def caConnect() {
 unschedule("caWatchdog") 
 unschedule("caHeartbeat") 
@@ -367,16 +40,10 @@ state.caLastRx = now()
 state.caSeenRx = false 
 state.caIntentionalClose = false
 state.caLinkDown = false 
-
-
-
 if (state.caRequiresRx != true) {
 state.caRetries = 0
 caSetBoardStatus("online")
 }
-
-
-
 if (caTransiente()) runIn(CA_IDLE_CLOSE_SEC, "caCloseIdle")
 else runIn(caHbSec(), "caHeartbeat")
 caAfterConnect()
@@ -387,32 +54,18 @@ int delay = Math.min(30 * tries, CA_RECONNECT_MAX)
 logWarn("[TCP] Conexão falhou (tentativa ${tries}): ${e.message} — nova tentativa em ${delay}s")
 caSetBoardStatus("offline")
 state.caLinkDown = true 
-
-
-
-
 state.caIntentionalClose = false
 runIn(delay, "caReconnectKick") 
 return 
 }
-
-
-
-
 try {
 caLicSchedule()
-
-
-
-
 if (!caLicOk()) runIn(5 + (caLicJitter() % 55), "caLicCheckNow")
 } catch (Exception e) {
 logWarn("[LICENÇA] Agendamento pós-conexão falhou (${e.message}) — link intacto.")
 }
 }
- 
 def caReconnectKick() { caConnect() }
- 
 def caDisconnect() {
 unschedule("caWatchdog")
 unschedule("caHeartbeat")
@@ -420,13 +73,7 @@ unschedule("caReconnectKick")
 try { interfaces.rawSocket.close() } catch (Exception ignored) { }
 CA_RX_BUF.remove(caDevKey())
 }
-
-
-
- 
- 
 private boolean caTransiente() { return settings?.tcpTransiente == true }
- 
 private Boolean caAbrirTransiente() {
 String ip = (settings.device_IP_address ?: "").trim()
 if (!ip || !settings.device_port) {
@@ -449,10 +96,7 @@ state.caLinkDown = true
 return false
 }
 }
- 
 def caCloseIdle() {
-
-
 if (!caTransiente()) return
 state.caIntentionalClose = true
 state.caLinkDown = true
@@ -460,20 +104,11 @@ try { interfaces.rawSocket.close() } catch (Exception ignored) { }
 CA_RX_BUF.put(caDevKey(), "")
 logDebug("[TCP] Socket transitório fechado (ocioso ${CA_IDLE_CLOSE_SEC}s).")
 }
-
-
-
- 
 private int caHbSec() { return Math.max(5, Math.min(300, (settings?.hbInterval ?: CA_HB_DEFAULT_SEC) as int)) }
- 
 def caHeartbeat() {
-
-
 if (caTransiente()) { logDebug("[HEARTBEAT] modo transitório — desarmado"); return }
 runIn(caHbSec(), "caHeartbeat")
 long idleMs = now() - ((state.caLastRx ?: 0L) as long)
-
-
 if (state.caRequiresRx == true && state.caSeenRx != true && idleMs > caHbSec() * 3000L) {
 caCaseCTrip(idleMs)
 return
@@ -490,14 +125,10 @@ return
 logDebug("[HEARTBEAT] Link quieto — poll: ${poll}")
 caSendRaw(poll)
 }
- 
 private void caCaseCTrip(long idleMs) {
 unschedule("caHeartbeat") 
-
-
 unschedule("caReconnectKick")
 state.caIntentionalClose = true 
-
 int tries = ((state.caRetries ?: 0) as int) + 1
 state.caRetries = tries
 caSetBoardStatus("offline")
@@ -508,47 +139,27 @@ logWarn("[TCP] Conectado mas SEM resposta há ${(long)(idleMs / 1000)}s — a ce
 "no teto de sessões TCP (a 11ª conecta e fica muda). Nova tentativa em ${delay}s.")
 runIn(delay, "caReconnectKick")
 }
- 
 void caProbeGatewayPoll() {
 state.caGwPollable = false
 caSendRaw("getdevices")
 }
-
-
-
- 
 private boolean caPollPermitido(String cmd) {
 if (cmd == "getdevices" || cmd == "get_firmware_version") return true
 return cmd ==~ /^mdcmd_getmd,\d{1,3},\d{1,3},\d{1,3}$/
 }
- 
 private Boolean caSendWire(String cmd) {
-
-
-
-
-
-
 if (caTransiente() && state.caLinkDown != false && !caAbrirTransiente()) return false
 if (state.caLinkDown == true) {
 logWarn("[TX] '${cmd}' NÃO enviado — sem link com a central (nada foi ao fio).")
-
-
 if (state.caIntentionalClose != true) runIn(1, "caReconnectKick")
 return false
 }
 try {
 logDebug("[TX] ${cmd}")
 interfaces.rawSocket.sendMessage(cmd + "\r\n")
-
 if (caTransiente()) runIn(CA_IDLE_CLOSE_SEC, "caCloseIdle")
 return true
 } catch (Exception e) {
-
-
-
-
-
 if (state.caIntentionalClose == true) {
 logDebug("[TX] Envio descartado — socket fechado de propósito (backoff do Caso C em andamento)")
 return false
@@ -559,7 +170,6 @@ runIn(5, "caReconnectKick")
 return false
 }
 }
- 
 private Boolean caSendRaw(String cmd) {
 String c = (cmd ?: "").trim()
 if (!caPollPermitido(c)) {
@@ -568,30 +178,16 @@ return false
 }
 return caSendWire(c)
 }
- 
 Boolean caSend(String cmd) {
 if (!cmd?.trim()) { logWarn("[TX] Comando vazio ignorado."); return false }
-
-
 if (!caLicOk()) {
 logWarn("[LICENÇA] Comando '${cmd.trim()}' BLOQUEADO — ${caLicTexto(caLicCache())}. HubUID: ${caHubUID()}")
 caLicPublicar()
-
-
-
-
-
-
-
 runIn(5 + (caLicJitter() % 55), "caLicCheckNow")
 return false
 }
 return caSendWire(cmd.trim())
 }
-
-
-
- 
 def parse(String msg) {
 state.caLastRx = now()
 if (state.caSeenRx != true) { state.caSeenRx = true; state.caRetries = 0 }
@@ -627,8 +223,6 @@ if (line.equalsIgnoreCase("Parse Error!") || line.equalsIgnoreCase("Parse Error"
 logWarn("[RX] Placa respondeu 'Parse Error!' (comando anterior inválido?)")
 return
 }
-
-
 if (line == "endlistdevices" || line.startsWith("device,")) {
 if (!state.caGwPollable) { state.caGwPollable = true; logInfo("[TCP] Gateway responde getdevices → keepalive ativo") }
 return
@@ -637,13 +231,8 @@ try { handleLine(line) }
 catch (Exception e) { logError("[RX] handleLine falhou em '${line}': ${e.message}") }
 }
 }
- 
 def socketStatus(String status) {
 logDebug("[SOCKET] ${status}")
-
-
-
-
 if (caTransiente()) { state.caLinkDown = true; return }
 if (state.caIntentionalClose == true) {
 logDebug("[SOCKET] fechamento intencional — sem reconexão concorrente")
@@ -657,36 +246,21 @@ state.caLinkDown = true
 runIn(5, "caReconnectKick")
 }
 }
-
-
-
- 
 void caSetBoardStatus(String newStatus) {
 if (((device.currentValue("boardstatus") ?: "") as String) == newStatus) return
 sendEvent(name: "boardstatus", value: newStatus, descriptionText: "${device.displayName} ${newStatus}")
 logInfo("[STATUS] boardstatus → ${newStatus}")
 }
-
-
-
- 
-
-
-
-
 private String caLicEndpoint() { return "https://script.google.com/macros/s/AKfycbwvNpGsy-9Xs4NRk6eer3HRZBXbkfhHJtqp23aIZJA1KBZJUJZ0OJnQvJ6PF36kcHjl/exec" }
- 
 private String caHubUID() {
 try { String v = location.hub.zigbeeEui?.toString(); if (v) return v } catch (Exception ignored) { }
 return null
 }
- 
 private String caLicDateStr(long ms) {
 def sdf = new java.text.SimpleDateFormat("yyyy-MM-dd")
 sdf.setTimeZone(TimeZone.getTimeZone("UTC"))
 return sdf.format(new Date(ms))
 }
- 
 private boolean caLicEvaluate(Map st, long nowMs) {
 String uid = caHubUID()
 if (!uid) return false 
@@ -697,7 +271,6 @@ if (!expiry) return false
 long maxSeen = (st.maxSeen ?: 0L) as long
 return caLicDateStr(Math.max(nowMs, maxSeen)) <= expiry
 }
- 
 private Map caLicApplyCheck(Map st, Map resposta, long nowMs) {
 String uid = caHubUID()
 long maxSeen = Math.max((st?.maxSeen ?: 0L) as long, nowMs)
@@ -711,15 +284,12 @@ return [uid: uid, status: (resposta.status ?: "notfound") as String,
 expiry: (resposta.expiry ?: "") as String,
 lastCheck: nowMs, maxSeen: maxSeen]
 }
- 
 private Map caLicCache() {
 return (atomicState.lic instanceof Map) ? (Map) atomicState.lic : null
 }
- 
 private boolean caLicOk() {
 return caLicEvaluate(caLicCache(), now())
 }
- 
 private String caLicTexto(Map st) {
 if (!caHubUID()) return "sem identidade — hub sem zigbeeEui"
 if (!st) return "aguardando primeira verificação"
@@ -730,12 +300,10 @@ return (st.status == "trial") ? "trial — vence ${st.expiry}" : "ativa"
 }
 return "inativa — fale com a TecnoSimples"
 }
- 
 private void caLicPublicar() {
 sendEvent(name: "hubUID", value: (caHubUID() ?: "sem identidade"))
 sendEvent(name: "licenca", value: caLicTexto(caLicCache()))
 }
- 
 def caLicCheckNow() {
 String uid = caHubUID()
 if (!uid) { logError("[LICENÇA] Hub sem zigbeeEui — sem identidade."); caLicPublicar(); return }
@@ -753,12 +321,6 @@ logWarn("[LICENÇA] Consulta falhou (${e.message}) — mantendo última validaç
 }
 boolean antes = caLicOk()
 atomicState.lic = caLicApplyCheck(caLicCache(), resposta, now())
-
-
-
-
-
-
 if (!antes && caLicOk() && state.caLinkDown != true) {
 logInfo("[LICENÇA] Liberada — repetindo o bootstrap pós-conexão.")
 try { caAfterConnect() } catch (Exception e) { logWarn("[LICENÇA] caAfterConnect falhou: ${e.message}") }
@@ -766,22 +328,17 @@ try { caAfterConnect() } catch (Exception e) { logWarn("[LICENÇA] caAfterConnec
 caLicPublicar()
 logInfo("[LICENÇA] ${caLicTexto(caLicCache())} (HubUID ${uid})")
 }
- 
 private long caLicJitter() { return (device.id as long) }
- 
 void caLicSchedule() {
 long j = caLicJitter()
-schedule("${j % 60} ${7 + (j % 5)} 3 * * ?", "caLicDaily")
+schedule("${j % 60} ${7 + (j % 5)} 3/6 * * ?", "caLicDaily")
 }
 def caLicDaily() {
 long last = (caLicCache()?.lastCheck ?: 0L) as long
-if ((now() - last) >= 4 * 86400_000L) caLicCheckNow()
+long limite = caLicOk() ? 4 * 86400_000L : 6 * 3600_000L
+if ((now() - last) >= limite) caLicCheckNow()
 }
- 
 void verificarLicenca() { logInfo("[LICENÇA] Verificação manual — HubUID: ${caHubUID()}"); caLicCheckNow() }
-
-
-
 void logDebug(String msg) { if (settings.logEnable) log.debug "${device.displayName}: ${msg}" }
 void logInfo(String msg) { log.info "${device.displayName}: ${msg}" }
 void logWarn(String msg) { log.warn "${device.displayName}: ${msg}" }
@@ -790,32 +347,14 @@ def logsOff() {
 log.warn "${device.displayName}: debug desativado automaticamente"
 device.updateSetting("logEnable", [value: "false", type: "bool"])
 }
- 
 void caScheduleLogsOff() {
 if (settings.logEnable) runIn(1800, "logsOff")
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 @Field static final Integer CA_ARTIFACT_MAX = 3
-
-
 @Field static final String CA_SEP_DEV = " @ "
- 
 String caNormKey(String raw) {
 return (raw ?: "").trim().toLowerCase().replaceAll("\\s+", "")
 }
- 
 Map caLerArtefato(String nome) {
 String n = (nome ?: "").trim()
 if (!n) throw new IllegalStateException("nenhum arquivo de import configurado")
@@ -842,11 +381,9 @@ if (!(art.gateways instanceof List) || !art.gateways) throw new IllegalStateExce
 "'${n}' não tem nenhuma central em 'gateways'")
 return art
 }
- 
 Map caCasarDispositivo(Map art, String pref) {
 String p = (pref ?: "").trim()
 if (!p) throw new IllegalStateException("preencha 'Dispositivo no projeto'")
- 
 List todos = []
 ((art?.gateways ?: []) as List).each { gw ->
 ((gw?.irrf ?: []) as List).each { b ->
@@ -879,7 +416,6 @@ throw new IllegalStateException(
 "'${p}' casa com ${casam.size()} dispositivos — use a forma qualificada. Opções: " +
 casam.collect { "${(it.dev ?: '')}${CA_SEP_DEV}${(it.room ?: '')}" }.join(' | '))
 }
- 
 String caIpDoProjeto(Map bloco, Boolean aplicar) {
 String doArq = ((bloco?.gwIp ?: "") as String).trim()
 if (!doArq) return null
@@ -897,7 +433,6 @@ if (meu == doArq) return null
 return ("o projeto diz que '${bloco?.dev}' emite por ${doArq}, este device está em ${meu} " +
 "— confira qual é o certo (código certo pela central errada não dá erro)").toString()
 }
- 
 Map caResolverImport(List cmds, List alvos, Map ptbr, Closure extra) {
 Map porTecla = [:]
 List naoCasou = []
@@ -927,7 +462,6 @@ else conflitos[tecla] = (itens as List).collect { it.alias }
 }
 return [grava: grava, conflitos: conflitos, naoCasou: naoCasou, foraDoAlvo: foraDoAlvo]
 }
- 
 Map caImportarDoProjeto(List alvos, Map ptbr, Closure extra, Closure ler, Closure gravar) {
 Map bloco
 try {
@@ -939,14 +473,11 @@ sendEvent(name: "importStatus", value: "erro")
 sendEvent(name: "importDetail", value: e.message)
 return [erro: e.message]
 }
- 
 String avisoIp = caIpDoProjeto(bloco, true)
 if (avisoIp) logWarn("[PROJETO] ${avisoIp}")
 Map r = caResolverImport((bloco.cmds ?: []) as List, alvos, ptbr, extra)
 Integer div = 0
-
 ((r.grava ?: [:]) as Map).each { k, v -> gravar(k, v) }
- 
 List<String> conflitosDetalhe = []
 ((r.conflitos ?: [:]) as Map).each { k, aliases ->
 div++
@@ -964,7 +495,6 @@ logError("[IMPORT] BUG de tabela: '${it}' aponta para uma tecla que este driver 
 }
 Integer n = ((r.grava ?: [:]) as Map).size()
 List naoCasou = (r.naoCasou ?: []) as List
- 
 List semOrigem = (alvos as List).findAll {
 ler(it) && !((r.grava ?: [:]) as Map).containsKey(it) &&
 !((r.conflitos ?: [:]) as Map).containsKey(it)
@@ -980,7 +510,6 @@ sendEvent(name: "importDetail", value: detalhe)
 sendEvent(name: "divergencias", value: div)
 return [importadas: n, divergencias: div, naoCasou: naoCasou, semOrigem: semOrigem]
 }
- 
 Integer caConferirProjetoIrrf(List alvos, Map ptbr, Closure extra, Closure ler) {
 Map bloco
 try {
@@ -994,7 +523,6 @@ return -1
 Map r = caResolverImport((bloco.cmds ?: []) as List, alvos, ptbr, extra)
 Integer div = 0
 List<String> achados = []
- 
 String avisoIp = caIpDoProjeto(bloco, false)
 if (avisoIp) { div++; achados << avisoIp }
 ((r.grava ?: [:]) as Map).each { k, v ->
@@ -1014,7 +542,6 @@ div++
 logError("[CONFERIR] BUG de tabela: '${it}' aponta para uma tecla que este driver não tem. " +
 "Reporte — é erro de código, não do seu projeto.")
 }
- 
 ((alvos as List).findAll {
 ler(it) && !((r.grava ?: [:]) as Map).containsKey(it) &&
 !((r.conflitos ?: [:]) as Map).containsKey(it)
@@ -1031,28 +558,16 @@ return div
 }
 import groovy.transform.Field
 import java.util.concurrent.ConcurrentHashMap
- 
 @Field static ConcurrentHashMap<String, Long> GW_BLACKOUT_UNTIL = new ConcurrentHashMap<String, Long>()
 @Field static ConcurrentHashMap<String, Long> GW_LAST_SENDMD_AT = new ConcurrentHashMap<String, Long>()
- 
 @Field static ConcurrentHashMap<String, Integer> GW_LAST_LEVEL = new ConcurrentHashMap<String, Integer>()
-
 @Field static final String CHILD_SWITCH = "Generic Component Switch"
 @Field static final String CHILD_DIMMER = "Generic Component Dimmer"
-
-
-
-
 @Field static final String CHILD_SHADE = "Generic Component Window Shade"
 @Field static final Integer CH_PER_MODULE = 3
 @Field static final Integer CFG_PULSE_IN = 1 
-
-
-
 @Field static final Integer CFG_ONOFF_OUT = 2
 @Field static final Integer CFG_DIMMER_OUT = 3
-
-
 @Field static final Long FOREIGN_THROTTLE_MS = 60000L 
 metadata {
 definition(
@@ -1072,26 +587,16 @@ command "verificarLicenca"
 command "conferirProjeto"
 attribute "boardstatus", "string"
 attribute "foreignClient", "string" 
-
-
-
 attribute "importStatus", "enum", ["ok", "aviso", "cache", "erro"]
 attribute "importDetail", "string"
 attribute "orphanCount", "number"
 attribute "licenca", "string"
 attribute "hubUID", "string"
 attribute "divergencias", "number"
-
-
-
-
-
 attribute "feedback", "string"
 }
 preferences {
 section("Conexão (central xPort)") {
-
-
 input name: "device_IP_address", type: "text", title: "IP do xPort", required: false
 input name: "device_port", type: "number", title: "Porta TCP", required: false, defaultValue: 4998
 }
@@ -1120,61 +625,37 @@ input name: "logEnable", type: "bool", title: "Ativar logs de debug (auto-off 30
 }
 }
 }
-
-
-
 def installed() { log.info "[XPORT-GW] Instalado: ${device.displayName}" }
- 
 def updated() { caScheduleLogsOff(); initializeCom("failHigh") }
 def configure() { initializeCom("failHigh") }
 def initialize() { initializeCom("keepCache") }
 private void initializeCom(String mode) {
 unschedule()
-
-
-
 state.caRequiresRx = true
 state.typeWarned = [:] 
 state.coverOrphanWarned = [:] 
-
-
-
 state.coverVerified = [:]
+state.bmSampled = [:] 
 if (!caParseAddresses(mode)) return 
 caAssignBases()
-
-
-
+criarCortinasDoArquivo()
 publicarFeedbackCortina()
 sendEvent(name: "numberOfButtons", value: caNumberOfButtons())
 sendEvent(name: "foreignClient", value: "nenhum")
 logButtonMap()
- 
 pruneOrphans()
 caScheduleLogsOff()
 caConnect()
 }
 def uninstalled() { caDisconnect() }
 def reconnect() { caConnect() }
-
-
-
-
-
 def refresh() { askConfigAll() }
-
- 
 void caAfterConnect() { caProbeGatewayPoll(); runInMillis(300, "askConfigAll") }
 String caPollCommand() { return null }
-
-
-
- 
 private Boolean caParseAddresses(String mode) {
 String arquivo = ((settings.moduleFile ?: "") as String).trim()
 return arquivo ? parseDoArquivo(arquivo, mode) : parseDaPreferencia()
 }
- 
 private Map<String, List<String>> triarEnderecos(String csv) {
 List<String> ok = [], bad = []
 (csv ?: "").split(",").each { String part ->
@@ -1184,29 +665,24 @@ if (p ==~ /^[0-9A-F]{2}-[0-9A-F]{2}-[0-9A-F]{2}$/) { ok << p } else { bad << p }
 }
 return [ok: ok, bad: bad]
 }
- 
 private void desarmarRemocao(String motivo) {
 if (settings.permitirRemocao != true) return
 device.updateSetting("permitirRemocao", [value: false, type: "bool"])
 logWarn("[LIMPEZA] 'Permitir REMOÇÃO' DESARMADO automaticamente (${motivo}). " +
 "Ligue de novo se precisar remover outra vez.")
 }
- 
 private void setImportStatus(String st, String detalhe, Integer orfaos) {
 sendEvent(name: "importStatus", value: st)
 sendEvent(name: "importDetail", value: detalhe)
 if (orfaos != null) sendEvent(name: "orphanCount", value: orfaos)
 }
- 
 private Boolean parseDaPreferencia() {
 Map triado = triarEnderecos(settings.moduleAddresses as String)
 List<String> ok = triado.ok, bad = triado.bad
- 
 if (((state.lastImportFile ?: "") as String)) {
 List<String> atuais = (state.addrs instanceof List) ? (state.addrs as List) : []
 List<String> perdidos = atuais.findAll { !ok.contains(it) }
 if (perdidos && settings.permitirRemocao != true) {
- 
 String msg = "Sair do modo arquivo derrubaria ${perdidos.size()} endereço(s) que " +
 "não estão na lista manual (${perdidos.join(', ')}) — e a lista manual " +
 "tem teto de 255 caracteres. NENHUM filho foi removido. Para sair mesmo " +
@@ -1236,9 +712,7 @@ logInfo("[ADDR] ${ok.size()} módulo(s): ${ok.join(', ')}")
 setImportStatus("ok", "modo manual — ${ok.size()} endereço(s)", 0)
 return true
 }
- 
 private Map lerArtefato(String nome) {
- 
 byte[] b
 try {
 b = downloadHubFile(nome)
@@ -1260,9 +734,7 @@ if (!(art.gateways instanceof List) || !art.gateways) throw new IllegalStateExce
 "'${nome}' não tem nenhuma central em 'gateways'")
 return art
 }
- 
 private Map escolherBloco(Map art, String nome) {
- 
 List gws = ((art.gateways ?: []) as List).findAll {
 (it.modules instanceof List) && (it.modules as List)
 }
@@ -1296,7 +768,6 @@ List<String> doArquivo
 try {
 bloco = escolherBloco(lerArtefato(nome), nome) 
 doArquivo = enderecosDoBloco(bloco, nome)
- 
 if (!doArquivo && (atuais || getChildDevices())) throw new IllegalStateException(
 "'${nome}' não tem nenhum módulo para esta central, mas o device já tem " +
 "${atuais.size()} endereço(s) e ${getChildDevices().size()} filho(s)")
@@ -1309,20 +780,15 @@ caDisconnect()
 caSetBoardStatus("offline")
 return false 
 }
-
-
 logError("[IMPORT] ${motivo} — mantendo a lista anterior (${atuais.size()} módulos)")
 setImportStatus("cache", "${motivo} — usando lista anterior de ${atuais.size()} módulo(s)", null)
 return !atuais.isEmpty()
 }
-
-
 List<String> nova = new ArrayList<String>(atuais)
 doArquivo.each { if (!nova.contains(it)) nova << it }
 List<String> orfaos = atuais.findAll { !doArquivo.contains(it) }
 state.addrs = nova
 state.lastImportFile = nome
- 
 Map labels = (state.labels instanceof Map) ? new HashMap(state.labels as Map) : [:]
 ((bloco.modules ?: []) as List).each { Map m ->
 String a = ((m.addr ?: "") as String).trim().toUpperCase()
@@ -1331,8 +797,6 @@ kind: (m.kind ?: "light") as String,
 ch: (m.ch instanceof List) ? m.ch : []]
 }
 state.labels = labels
-
-
 String meu = ((settings.device_IP_address ?: "") as String).trim()
 String doArq = ((bloco.ip ?: "") as String).trim()
 String aviso = null
@@ -1361,7 +825,6 @@ return !nova.isEmpty()
 private String hexToDec(String hex) {
 return hex.split("-").collect { Integer.parseInt(it, 16) as String }.join(",")
 }
- 
 private void caAssignBases() {
 Map bases = (state.btnBase instanceof Map) ? new HashMap(state.btnBase) : [:]
 (state.addrs as List).each { String hex ->
@@ -1372,14 +835,12 @@ bases[hex] = nxt
 }
 state.btnBase = bases
 }
- 
 private int caNumberOfButtons() {
 List<Integer> act = (state.addrs as List).findAll { state.btnBase[it] != null }
 .collect { state.btnBase[it] as int }
 return act ? (act.max() + CH_PER_MODULE) : 0
 }
 private void logButtonMap() {
- 
 Map<String, String> agora = [:]
 (state.addrs as List).each { agora[it as String] = "${state.btnBase[it]}" }
 Map<String, String> antes = [:]
@@ -1387,7 +848,6 @@ Map<String, String> antes = [:]
 int i = par.lastIndexOf(':') 
 if (i > 0) antes[par.substring(0, i)] = par.substring(i + 1)
 }
- 
 List<String> chavesAntes = new ArrayList<String>(antes.keySet())
 List<String> chavesAgora = new ArrayList<String>(agora.keySet())
 List<String> renumerados = chavesAntes.findAll { agora.containsKey(it) && agora[it] != antes[it] }
@@ -1408,15 +868,38 @@ int b = state.btnBase[hex] as int
 logInfo("[BOTÕES] ${hex} → S1=${b + 1}  S2=${b + 2}  S3=${b + 3}")
 }
 }
-
-
-
-
-
 void handleLine(String line) {
 if (line.startsWith("setmd,")) { onSetmd(line); return }
 if (line.startsWith("setconfigmd,")) { onSetconfigmd(line); return }
+if (line.startsWith("setbmmd,")) { onSetbmmd(line); return }
 logDebug("[RX] Linha não tratada: ${line}")
+}
+private void onSetbmmd(String line) {
+String[] f = line.split(",", -1)
+if (f.size() != 7) { logDebug("[RX] setbmmd com ${f.size()} campos — ignorado"); return }
+String hex = f[1]?.trim()?.toUpperCase()
+if (!(state.addrs as List)?.contains(hex)) {
+logInfo("[RX] setbmmd de ${hex} — módulo não cadastrado aqui, ignorado")
+return
+}
+if (kindDe(hex) != "cover") {
+logError("[CRÍTICO] ${hex}: o arquivo NÃO diz cortina, mas o módulo responde " +
+"como motor (setbmmd). Confira o projeto no xConfig.")
+return
+}
+Map vistos = (state.bmSampled instanceof Map) ? new HashMap(state.bmSampled as Map) : [:]
+if (!vistos[hex]) {
+vistos[hex] = true
+state.bmSampled = vistos
+logInfo("[CORTINA] ${hex} confirmada pelo módulo (setbmmd). Campos observados: " +
+"${f[2]},${f[3]},${f[4]},${f[5]},${f[6]} — semântica ainda NÃO medida, " +
+"o driver não deriva posição nem tecla deles.")
+}
+Map ver = (state.coverVerified instanceof Map) ? new HashMap(state.coverVerified as Map) : [:]
+if (ver[hex] == true) return 
+ver[hex] = true
+state.coverVerified = ver
+publicarFeedbackCortina()
 }
 private void onSetmd(String line) {
 String[] f = line.split(",", -1)
@@ -1426,32 +909,14 @@ if (!(state.addrs as List)?.contains(hex)) {
 logInfo("[RX] setmd de ${hex} — módulo não cadastrado aqui, ignorado")
 return
 }
-
-
-
-
 for (int k = 2; k <= 7; k++) {
 if (!(f[k]?.trim() ==~ /^\d{1,5}$/)) {
 logDebug("[RX] setmd com campo não numérico (${f[k]}) — frame descartado")
 return
 }
 }
-
-
-
-
-
-
 long until = (GW_BLACKOUT_UNTIL[gwKey(hex)] ?: 0L) as long
 boolean muted = now() < until
-
-
-
-
-
-
-
-
 if (!muted && ((f[2].trim() as int) == 0) && ((f[3].trim() as int) == 0) && ((f[4].trim() as int) == 0)) {
 long lastCmd = (GW_LAST_SENDMD_AT[gwKey(hex)] ?: 0L) as long
 if ((now() - lastCmd) > caBlackoutMs()) {
@@ -1466,12 +931,8 @@ logWarn("[FOREIGN] ${txt}")
 }
 }
 }
-
-
 int base = (state.btnBase[hex] ?: 0) as int
 for (int i = 0; i < CH_PER_MODULE; i++) {
-
-
 int v = f[2 + i].trim() as int
 if (v != 1) continue
 if (muted) {
@@ -1482,7 +943,6 @@ int btn = base + i + 1
 sendEvent(name: "pushed", value: btn, isStateChange: true, type: "physical",
 descriptionText: "${device.displayName} tecla S${i + 1} do módulo ${hex} (botão ${btn})")
 }
-
 for (int j = 0; j < CH_PER_MODULE; j++) {
 def cd = getChildDevice(outDni(hex, j))
 if (!cd) continue
@@ -1492,9 +952,6 @@ List evts = []
 if (cd.currentValue("switch") != sw) {
 evts << [name: "switch", value: sw, descriptionText: "${cd.displayName} ${sw}"]
 }
-
-
-
 if (o > 0 && cd.hasCapability("SwitchLevel")) {
 int lvl = rawToLevel(o)
 GW_LAST_LEVEL[gwChKey(hex, j)] = lvl
@@ -1508,16 +965,13 @@ if (evts) { cd.parse(evts) }
 private String outDni(String hex, int ch) {
 return "${device.id}-${hex.replace('-', '')}-${ch}"
 }
- 
 private String coverDni(String hex) { return "${device.id}-${hex.replace('-', '')}-COVER" }
- 
 private String coverHexOf(String dni) {
 def m = ((dni ?: "") as String) =~ /^\d+-([0-9A-F]{6})-COVER$/
 if (!m.find()) return null
 String h = m.group(1)
 return "${h[0..1]}-${h[2..3]}-${h[4..5]}"
 }
- 
 private String rotuloCortina(String hex) {
 Map todos = (state.labels instanceof Map) ? (state.labels as Map) : [:]
 Map l = (todos[hex] instanceof Map) ? (todos[hex] as Map) : null
@@ -1529,45 +983,32 @@ if (!alias && !room) return null
 if (!alias) return "${room} cortina"
 return room ? "${room} — ${alias}" : alias
 }
- 
 private String kindDe(String hex) {
 Map l = (state.labels instanceof Map) ? (state.labels[hex] as Map) : null
 return (l?.kind ?: "light") as String
 }
-
-
-
 def askConfigAll() {
 state.cfgSeen = []
 List addrs = (state.addrs as List) ?: []
 addrs.eachWithIndex { String hex, int i ->
 runInMillis(150 * i, "askConfigOne", [data: [hex: hex], overwrite: false])
 }
-
-
-
-
 int off = 150 * addrs.size() + 500
 addrs.eachWithIndex { String hex, int i ->
 runInMillis(off + 150 * i, "askStatusOne", [data: [hex: hex], overwrite: false])
 }
- 
 int warnSec = Math.max(5, (int) Math.ceil((150.0 * addrs.size() + 5000.0) / 1000.0))
 runIn(warnSec, "warnSilentModules")
 }
 def askConfigOne(Map data) {
 caSend("mdcmd_getconfigmd,${hexToDec(data.hex as String)}")
 }
- 
 def warnSilentModules() {
 List<String> seen = (state.cfgSeen instanceof List) ? state.cfgSeen : []
+Map ver = (state.coverVerified instanceof Map) ? (state.coverVerified as Map) : [:]
 (state.addrs as List).each { String hex ->
+if (ver[hex] == true) return
 if (!seen.contains(hex)) {
-
-
-
-
-
 String cauda = (kindDe(hex) == "cover")
 ? "O filho de CORTINA existe (nasceu do arquivo) e está visível, mas fica " +
 "'nao-verificado': todo comando nele é RECUSADO até o módulo responder."
@@ -1589,17 +1030,12 @@ return
 List<String> seen = (state.cfgSeen instanceof List) ? new ArrayList(state.cfgSeen) : []
 if (!seen.contains(hex)) { seen << hex }
 state.cfgSeen = seen
-
-
-
-
 for (int k = 2; k <= 7; k++) {
 if (!(f[k]?.trim() ==~ /^\d{1,5}$/)) {
 logDebug("[RX] setconfigmd com campo não numérico (${f[k]}) — frame descartado")
 return
 }
 }
- 
 if (kindDe(hex) == "cover") {
 Boolean tipoConhecido = false
 for (int j = 0; j < CH_PER_MODULE; j++) {
@@ -1607,11 +1043,6 @@ Integer t = null
 try { t = (f[5 + j]?.trim() as Integer) } catch (Exception ignored) { }
 if (t == CFG_ONOFF_OUT || t == CFG_DIMMER_OUT) tipoConhecido = true
 }
-
-
-
-
-
 Map ver = (state.coverVerified instanceof Map) ? new HashMap(state.coverVerified as Map) : [:]
 if (tipoConhecido) {
 ver[hex] = false
@@ -1620,13 +1051,6 @@ logError("[CRÍTICO] ${hex}: o arquivo diz que é cortina, mas o módulo " +
 "projeto no xConfig. Comandos nesta cortina serão RECUSADOS.")
 state.coverVerified = ver
 publicarFeedbackCortina()
-
-
-
-
-
-
-
 } else {
 ver[hex] = true
 logInfo("[CHILD] ${hex}: cortina confirmada pelo módulo (tipo de canal " +
@@ -1643,16 +1067,6 @@ publicarFeedbackCortina()
 return 
 }
 }
-
-
-
-
-
-
-
-
-
-
 if (kindDe(hex) != "cover" && getChildDevice(coverDni(hex))) {
 coverOrphanWarn(hex)
 } else {
@@ -1676,12 +1090,10 @@ if (rotulo) props.label = rotulo
 addChildDevice("hubitat", esperado, dni, props)
 logInfo("[CHILD] Criado ${dni} (${esperado == CHILD_DIMMER ? 'dimmer' : 'relé'})${rotulo ? " — ${rotulo}" : ''}")
 }
-
 Map ct = (state.chTypes instanceof Map) ? new HashMap(state.chTypes as Map) : [:]
 ct[hex] = tipos
 state.chTypes = ct
 }
- 
 private String rotuloDe(String hex, int ch) {
 Map todos = (state.labels instanceof Map) ? (state.labels as Map) : [:]
 Map l = (todos[hex] instanceof Map) ? (todos[hex] as Map) : null
@@ -1693,7 +1105,6 @@ if (!alias && !room) return null
 if (!alias) return "${room} saída ${ch + 1}"
 return room ? "${room} — ${alias}" : alias
 }
- 
 private void typeMismatchWarn(String dni, String atual, String esperado) {
 Map warned = (state.typeWarned instanceof Map) ? new HashMap(state.typeWarned as Map) : [:]
 if (warned[dni]) return
@@ -1709,7 +1120,6 @@ Map warned = new HashMap(state.typeWarned as Map)
 warned.remove(dni)
 state.typeWarned = warned
 }
- 
 private void coverOrphanWarn(String hex) {
 String dni = coverDni(hex)
 Map warned = (state.coverOrphanWarned instanceof Map) ? new HashMap(state.coverOrphanWarned as Map) : [:]
@@ -1727,7 +1137,6 @@ Map warned = new HashMap(state.coverOrphanWarned as Map)
 warned.remove(dni)
 state.coverOrphanWarned = warned
 }
- 
 def relabelFromFile() {
 String nome = ((settings.moduleFile ?: "") as String).trim()
 if (!nome) {
@@ -1739,10 +1148,6 @@ Map bloco = escolherBloco(lerArtefato(nome), nome)
 Map labels = [:]
 ((bloco.modules ?: []) as List).each { Map m ->
 String a = ((m.addr ?: "") as String).trim().toUpperCase()
-
-
-
-
 if (a) labels[a] = [room: (m.room ?: "") as String,
 kind: (m.kind ?: "light") as String,
 ch: (m.ch instanceof List) ? m.ch : []]
@@ -1763,7 +1168,6 @@ logError("[ROTULO] ${motivo}")
 setImportStatus("erro", motivo, null)
 }
 }
- 
 def limparOrfaos() {
 if (settings.permitirRemocao != true) {
 logWarn("[LIMPEZA] DESARMADO — ligue 'Permitir REMOÇÃO' nas preferências. " +
@@ -1785,7 +1189,6 @@ Map art = lerArtefato(nome)
 Map bloco = escolherBloco(art, nome)
 List<String> doArquivo = enderecosDoBloco(bloco, nome)
 List<String> orfaos = listaFinal.findAll { !doArquivo.contains(it) }
- 
 Integer versaoArquivo = (art.v as Integer)
 Map nomes = (state.sceneNames instanceof Map) ? new HashMap(state.sceneNames as Map) : [:]
 List<String> cenasMortas = []
@@ -1806,7 +1209,6 @@ if (orfaos) {
 List<String> prefixos = orfaos.collect { "${device.id}-${it.replace('-', '')}-" }
 List doomed = getChildDevices().findAll { cd -> prefixos.any { cd.deviceNetworkId.startsWith(it) } }
 logWarn("[LIMPEZA] Removendo ${orfaos.size()} endereço(s): ${orfaos.join(', ')}")
-
 orfaos.each { a -> for (int c = 0; c < CH_PER_MODULE; c++) { GW_LAST_LEVEL.remove(gwChKey(a as String, c)) } }
 logWarn("[LIMPEZA] ${doomed.size()} filho(s) serão APAGADOS: " +
 "${doomed.collect { it.displayName }.join(', ')}")
@@ -1814,9 +1216,6 @@ listaFinal = listaFinal.findAll { !orfaos.contains(it) }
 state.addrs = listaFinal
 pruneOrphans() 
 }
-
-
-
 List<String> cenasMortasNomeadas = cenasMortas.collect { "${it} (${nomes[it]})" }
 if (cenasMortas) {
 logWarn("[LIMPEZA] Removendo ${cenasMortas.size()} cena(s) que sumiram do projeto: ${cenasMortasNomeadas.join(', ')}")
@@ -1827,8 +1226,6 @@ nomes.remove(k)
 }
 state.sceneNames = nomes
 }
-
-
 List<String> feito = []
 if (orfaos) feito << "removidos ${orfaos.size()} endereço(s): ${orfaos.join(', ')}"
 if (cenasMortas) feito << "removida(s) ${cenasMortas.size()} cena(s): ${cenasMortasNomeadas.join(', ')}"
@@ -1845,11 +1242,9 @@ state.caIntentionalClose = false
 caConnect() 
 }
 }
- 
 private void pruneOrphans() {
 List<String> prefixos = (state.addrs as List).collect { "${device.id}-${it.replace('-', '')}-" }
 getChildDevices().each { cd ->
- 
 if (isSceneDni(cd.deviceNetworkId as String)) return
 if (!prefixos.any { cd.deviceNetworkId.startsWith(it) }) {
 logInfo("[CHILD] Removendo órfão ${cd.deviceNetworkId}")
@@ -1859,35 +1254,23 @@ deleteChildDevice(cd.deviceNetworkId)
 }
 }
 }
- 
 private long caBlackoutMs() {
 return Math.max(5000L, Math.min(10000L, ((settings?.blackoutMs ?: 5000) as long)))
 }
- 
 private void askStatusMuted(String hex) {
 GW_BLACKOUT_UNTIL[gwKey(hex)] = now() + caBlackoutMs()
 caSend("mdcmd_getmd,${hexToDec(hex)}")
 }
- 
 private String gwKey(String hex) { return "${device.id}:${hex}" }
- 
 private static int levelToRaw(int level) {
 int l = Math.max(0, Math.min(100, level))
 return (int) Math.round(l * 255.0d / 100.0d)
 }
- 
 private static int rawToLevel(int raw) {
 return Math.max(1, (int) Math.round(raw * 100.0d / 255.0d))
 }
- 
 private String gwChKey(String hex, int ch) { return "${device.id}:${hex}:${ch}" }
- 
 def askStatusOne(Map data) { askStatusMuted(data.hex as String) }
-
-
-
-
-
 private String sceneDni(Integer id) { return "${device.id}-SCENE-${id}" }
 private Boolean isSceneDni(String dni) {
 return ((dni ?: "") as String).startsWith("${device.id}-SCENE-")
@@ -1896,7 +1279,6 @@ private Integer sceneIdOf(String dni) {
 def m = ((dni ?: "") =~ /-SCENE-(\d+)$/)
 return m.find() ? (m.group(1) as Integer) : null
 }
- 
 private Integer aplicarCenas(List cenas) {
 Integer div = 0
 Map nomes = (state.sceneNames instanceof Map) ? new HashMap(state.sceneNames as Map) : [:]
@@ -1935,16 +1317,10 @@ nomes[chave] = nome
 state.sceneNames = nomes
 return div
 }
- 
 private void dispararCena(cd) {
 Integer id = sceneIdOf(cd.deviceNetworkId as String)
 if (!id) { logError("[CENA] DNI inesperado: ${cd.deviceNetworkId}"); return }
-
-
-
-
 if (!caSend("sendScene,${id}")) return
- 
 def filho = getChildDevice(cd.deviceNetworkId as String)
 if (!filho) { logError("[CENA] filho ${cd.deviceNetworkId} sumiu entre o disparo e o estado"); return }
 filho.parse([[name: "switch", value: "on", descriptionText: "cena ${id} disparada"]])
@@ -1954,14 +1330,10 @@ void desligarCena(Map data) {
 def cd = getChildDevice(data?.dni as String)
 if (cd) cd.parse([[name: "switch", value: "off", descriptionText: "cena é momentânea"]])
 }
- 
 def conferirProjeto() {
 String nome = ((settings.moduleFile ?: "") as String).trim()
 if (!nome) {
 logWarn("[CONFERIR] Sem 'Arquivo de import' configurado — nada a comparar.")
-
-
-
 sendEvent(name: "divergencias", value: -1)
 return
 }
@@ -1978,7 +1350,6 @@ div++; achados << "módulo ${it} está no hub e NÃO no arquivo (rode limparOrfa
 doArquivo.findAll { !atuais.contains(it) }.each {
 div++; achados << "módulo ${it} está no arquivo e não no hub — salve o device para importar"
 }
- 
 Integer versaoArquivo = (art.v as Integer)
 if (versaoArquivo < 2) {
 logInfo("[CONFERIR] '${nome}' é v${versaoArquivo} — não carrega cena; cenas NÃO foram conferidas.")
@@ -2005,11 +1376,6 @@ div++; achados << "cena ${k} ('${n}') está no arquivo e não no hub — salve o
 }
 }
 }
-
-
-
-
-
 atuais.findAll { kindDe(it) != "cover" && getChildDevice(coverDni(it)) != null }.each {
 div++
 achados << "CRÍTICO: ${it} tem filho de cortina (${coverDni(it)}) mas o arquivo não marca " +
@@ -2030,16 +1396,8 @@ logInfo("[CONFERIR] Hub e '${nome}' batem: ${((state.addrs ?: []) as List).size(
 achados.each { logWarn("[CONFERIR] ${it}") }
 }
 }
-
-
-
-
 void componentOn(cd) {
 if (isSceneDni(cd.deviceNetworkId as String)) { dispararCena(cd); return }
-
-
-
-
 if (cd.typeName == CHILD_DIMMER) {
 Map p = dniParts(cd.deviceNetworkId)
 if (!p) { logError("[CMD] DNI inesperado: ${cd.deviceNetworkId}"); return }
@@ -2051,8 +1409,6 @@ return
 componentSwitch(cd, 1)
 }
 void componentOff(cd) {
-
-
 if (isSceneDni(cd.deviceNetworkId as String)) {
 def filho = getChildDevice(cd.deviceNetworkId as String)
 if (filho) filho.parse([[name: "switch", value: "off", descriptionText: "cena é momentânea"]])
@@ -2065,10 +1421,6 @@ if (isSceneDni(cd.deviceNetworkId as String)) {
 logDebug("[CENA] refresh não se aplica — cena não tem estado para ler")
 return
 }
-
-
-
-
 String coverHex = coverHexOf(cd.deviceNetworkId as String)
 if (coverHex) { askStatusMuted(coverHex); return }
 Map p = dniParts(cd.deviceNetworkId)
@@ -2078,18 +1430,14 @@ void componentSetLevel(cd, level, duration = null) {
 Map p = dniParts(cd.deviceNetworkId)
 if (!p) { logError("[CMD] DNI inesperado: ${cd.deviceNetworkId}"); return }
 if (!tipoConfere(cd, p)) return
-
 if (duration != null) { logDebug("[CMD] duration=${duration} ignorado — rampa é do módulo") }
 int lvl = Math.max(0, Math.min(100, ((level ?: 0) as int)))
 if (lvl > 0) { GW_LAST_LEVEL[gwChKey(p.hex as String, p.ch as int)] = lvl } 
 GW_LAST_SENDMD_AT[gwKey(p.hex as String)] = now()
 caSend("mdcmd_sendmd,${hexToDec(p.hex as String)},${p.ch},${levelToRaw(lvl)}")
 }
- 
 void componentStartLevelChange(cd, direction) { logDebug("[CMD] startLevelChange(${direction}) sem suporte no protocolo xBus — no-op") }
 void componentStopLevelChange(cd) { logDebug("[CMD] stopLevelChange — no-op") }
-
- 
 private Boolean coverPronta(String hex) {
 Map ver = (state.coverVerified instanceof Map) ? (state.coverVerified as Map) : [:]
 if (ver[hex] == true) return true
@@ -2098,7 +1446,18 @@ logError("[CORTINA] ${hex} está 'nao-verificado' — o módulo ainda não " +
 publicarFeedbackCortina() 
 return false
 }
- 
+private void criarCortinasDoArquivo() {
+((state.addrs ?: []) as List).each { String hex ->
+if (kindDe(hex as String) != "cover") return
+if (getChildDevice(coverDni(hex as String))) return
+String rotulo = rotuloCortina(hex as String) ?: (hex as String)
+addChildDevice("hubitat", CHILD_SHADE, coverDni(hex as String),
+[name: "${hex} cortina", isComponent: true, label: rotulo])
+logInfo("[CHILD] Criado ${coverDni(hex as String)} (cortina, do arquivo) — " +
+"${rotulo}. Fica 'nao-verificado' — comando é RECUSADO até o " +
+"módulo responder ao getconfigmd.")
+}
+}
 private void publicarFeedbackCortina() {
 List cortinas = ((state.addrs ?: []) as List).findAll { kindDe(it as String) == "cover" }
 if (!cortinas) return
@@ -2117,30 +1476,16 @@ Integer p = Math.max(0, Math.min(100, (pos ?: 0) as Integer))
 String estado = (p == 0) ? "closed" : (p == 100) ? "open" : "partially open"
 cortinaCmd(cd, 0, levelToRaw(p), estado, p) 
 }
- 
 void componentStartPositionChange(cd, direction) {
 cortinaCmd(cd, 2, (direction == "close") ? 2 : 0, "partially open")
 }
- 
 private void cortinaCmd(cd, int registrador, int valor, String windowShade, Integer posicao = null) {
 String hex = coverHexOf(cd.deviceNetworkId as String)
 if (!hex) { logError("[CMD] DNI de cortina inesperado: ${cd.deviceNetworkId}"); return }
 if (!coverPronta(hex)) return
-
-
-
-
-
 GW_LAST_SENDMD_AT[gwKey(hex)] = now()
 if (!caSend("mdcmd_sendmd,${hexToDec(hex)},${registrador},${valor}")) return
 def filho = getChildDevice(coverDni(hex)) 
-
-
-
-
-
-
-
 if (filho && windowShade) {
 List eventos = [[name: "windowShade", value: windowShade,
 descriptionText: "${filho.displayName} ${windowShade} (otimista)"]]
@@ -2156,12 +1501,9 @@ private void componentSwitch(cd, int val) {
 Map p = dniParts(cd.deviceNetworkId)
 if (!p) { logError("[CMD] DNI inesperado: ${cd.deviceNetworkId}"); return }
 if (!tipoConfere(cd, p)) return
-
-
 GW_LAST_SENDMD_AT[gwKey(p.hex as String)] = now()
 caSend("mdcmd_sendmd,${hexToDec(p.hex as String)},${p.ch},${val}")
 }
- 
 private boolean tipoConfere(cd, Map p) {
 List tipos = (state.chTypes instanceof Map) ? (state.chTypes[p.hex] as List) : null
 Integer tipo = (tipos && (p.ch as int) < tipos.size()) ? (tipos[p.ch as int] as Integer) : null
