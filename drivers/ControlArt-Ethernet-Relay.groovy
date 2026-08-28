@@ -7,7 +7,7 @@
  *
  * Produto licenciado. Distribuido via Hubitat Package Manager.
  * Uso restrito ao hub licenciado. Ver LICENSE no repositorio.
- * Versao do pacote: 1.0.7 | library embutida: 1.17.0
+ * Versao do pacote: 1.0.8 | library embutida: 1.17.0
  */
 import groovy.transform.Field
 import java.util.concurrent.ConcurrentHashMap
@@ -659,21 +659,26 @@ sendEvent(name: "numberOfButtons", value: state.inCount)
 migrarMotorPairs() 
 createChildren()
 publicarEstadoDeCortina()
-if (device.currentValue("importStatus") == null) {
+String stAtual = device.currentValue("importStatus")
+if (stAtual == null || stAtual == "nao-importado") {
 int nPref = (0..4).count { settings["motorPar${it + 1}"] } as int
 setImportStatus("nao-importado", nPref
 ? "Nenhum projeto importado, mas ${nPref} par(es) de motor estão " +
-"declarados à mão na preferência 'Pares em modo Motor/Persiana' — " +
-"essas saídas ESTÃO protegidas (sem botão de relé, recusa de " +
-"comando direto e máscara no Desliga tudo/Liga tudo). Confira que " +
-"os pares marcados são os mesmos do mdConfig; par esquecido aqui " +
-"não tem proteção nenhuma."
-: "Nenhum projeto importado. Esta caixa está sendo tratada como 100% " +
-"iluminação: se alguma saída for Motor/Persiana no mdConfig, ela NÃO " +
-"está protegida aqui — Desliga tudo e Liga tudo saem sem máscara e " +
-"podem energizar sobe e desce ao mesmo tempo. Para corrigir: marque " +
-"os pares na preferência 'Pares em modo Motor/Persiana', ou preencha " +
-"a preferência 'Arquivo de import' e execute importarDoProjeto.")
+"declarados à mão — essas saídas ESTÃO protegidas aqui (sem botão " +
+"de relé, recusa de comando direto, máscara no Liga tudo) e ganham " +
+"device de cortina. CONFIRA em 'paresMotor' se os pares batem com o " +
+"mdConfig: não existe como perguntar o modo à placa (medido, acervo " +
+"§3.9b), então esta conferência é humana. Par que estiver como motor " +
+"no mdConfig e desmarcado aqui vira dois botões soltos; par ligado " +
+"como motor e ausente NOS DOIS é o único caso sem proteção nenhuma."
+: "Nenhum projeto importado e nenhum par de motor declarado: esta caixa " +
+"está sendo tratada como 100% iluminação. Se alguma saída for " +
+"Motor/Persiana, ela aparece aqui como dois botões de relé soltos, sem " +
+"device de cortina. RISCO REAL (medido na bancada, acervo §3.9b): par " +
+"ligado como motor e NÃO configurado no mdConfig — a placa não o " +
+"protege e o 'Liga tudo' energiza sobe e desce ao mesmo tempo. Confira " +
+"o mdConfig e marque os pares na preferência 'Pares em modo " +
+"Motor/Persiana' (ou use o 'Arquivo de import' e importarDoProjeto).")
 }
 caScheduleLogsOff()
 caConnect()
