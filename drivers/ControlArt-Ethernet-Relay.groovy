@@ -7,7 +7,7 @@
  *
  * Produto licenciado. Distribuido via Hubitat Package Manager.
  * Uso restrito ao hub licenciado. Ver LICENSE no repositorio.
- * Versao do pacote: 1.0.5 | library embutida: 1.17.0
+ * Versao do pacote: 1.0.6 | library embutida: 1.17.0
  */
 import groovy.transform.Field
 import java.util.concurrent.ConcurrentHashMap
@@ -594,6 +594,7 @@ attribute "macaddr", "string"
 attribute "licenca", "string"
 attribute "hubUID", "string"
 attribute "importStatus", "enum", ["nao-importado", "aviso", "ok", "erro"]
+attribute "paresMotor", "string"
 attribute "importDetail", "string"
 attribute "feedback", "string"
 }
@@ -612,12 +613,16 @@ defaultValue: 60, range: "5..600"
 }
 section("Canais") {
 input name: "outputs", type: "number", title: "Relés em uso (1-10)", defaultValue: 10, range: "1..10"
-input name: "motorPairs", type: "enum", multiple: true, required: false,
-title: "Pares em modo Motor/Persiana (mdConfig)",
-description: "marque o que estiver como MOTOR/PERSIANAS na placa — soma ao arquivo de import, nunca subtrai",
-options: ["0": "Par 1 — saídas 1 e 2", "1": "Par 2 — saídas 3 e 4",
-"2": "Par 3 — saídas 5 e 6", "3": "Par 4 — saídas 7 e 8",
-"4": "Par 5 — saídas 9 e 10"]
+input name: "motorPar1", type: "bool", defaultValue: false,
+title: "Par 1 — saídas 1 e 2 em modo Motor/Persiana"
+input name: "motorPar2", type: "bool", defaultValue: false,
+title: "Par 2 — saídas 3 e 4 em modo Motor/Persiana"
+input name: "motorPar3", type: "bool", defaultValue: false,
+title: "Par 3 — saídas 5 e 6 em modo Motor/Persiana"
+input name: "motorPar4", type: "bool", defaultValue: false,
+title: "Par 4 — saídas 7 e 8 em modo Motor/Persiana"
+input name: "motorPar5", type: "bool", defaultValue: false,
+title: "Par 5 — saídas 9 e 10 em modo Motor/Persiana"
 input name: "inputs", type: "number", title: "Entradas em uso (1-12)", defaultValue: 12, range: "1..12"
 input name: "inputsCreateContactChildren", type: "bool", title: "Criar childs Contact para as entradas", defaultValue: false
 }
@@ -651,9 +656,11 @@ state.prevInputs = (0..<MAX_INPUTS).collect { 0 }
 state.lastPulseTs = (0..<MAX_INPUTS).collect { 0L }
 }
 sendEvent(name: "numberOfButtons", value: state.inCount)
+migrarMotorPairs() 
 createChildren()
+publicarParesMotor()
 if (device.currentValue("importStatus") == null) {
-int nPref = ((settings.motorPairs ?: []) as List).size()
+int nPref = (0..4).count { settings["motorPar${it + 1}"] } as int
 setImportStatus("nao-importado", nPref
 ? "Nenhum projeto importado, mas ${nPref} par(es) de motor estão " +
 "declarados à mão na preferência 'Pares em modo Motor/Persiana' — " +
@@ -1070,6 +1077,7 @@ state.relays = ((bloco.relays ?: []) as List).collect {
 [ch: (it.ch as Integer), label: (it.label ?: "") as String,
 room: (it.room ?: "") as String] }
 state.lastImportFile = nome
+publicarParesMotor() 
 state.redeTemCortina = ((art.gateways ?: []) as List).any { it.type == "mcrl" && ((it.covers ?: []) as List) }
 String meu = ((settings.device_IP_address ?: "") as String).trim()
 String doArq = ((bloco.ip ?: "") as String).trim()
@@ -1105,8 +1113,24 @@ setImportStatus("erro", motivo)
 private Set<Integer> paresDeMotor() {
 Set<Integer> ps = [] as Set
 ((state.covers ?: []) as List).each { Map c -> ps << (c.i as Integer) }
-((settings.motorPairs ?: []) as List).each { ps << (it as Integer) }
+(0..4).each { int i -> if (settings["motorPar${i + 1}"]) ps << i }
 return ps
+}
+private void migrarMotorPairs() {
+List legado = (settings.motorPairs ?: []) as List
+if (!legado) return
+legado.each { device.updateSetting("motorPar${(it as Integer) + 1}", [value: "true", type: "bool"]) }
+device.removeSetting("motorPairs")
+logWarn("[MIGRAÇÃO] ${legado.size()} par(es) da preferência antiga 'Pares em modo Motor/Persiana' " +
+"viraram toggles individuais. Confira em 'paresMotor' e salve as preferências.")
+}
+private void publicarParesMotor() {
+List pares = (paresDeMotor() as List).sort()
+String v = pares
+? pares.collect { int i -> "Par ${i + 1} (saídas ${i * 2 + 1} e ${i * 2 + 2})" }.join(" · ")
+: "nenhum — esta caixa está sendo tratada como 100% iluminação"
+sendEvent(name: "paresMotor", value: v,
+descriptionText: "pares de motor reconhecidos: ${v}")
 }
 private Set motorOuts() {
 Set out = [] as Set
