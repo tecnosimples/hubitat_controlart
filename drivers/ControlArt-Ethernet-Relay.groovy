@@ -7,7 +7,7 @@
  *
  * Produto licenciado. Distribuido via Hubitat Package Manager.
  * Uso restrito ao hub licenciado. Ver LICENSE no repositorio.
- * Versao do pacote: 1.0.6 | library embutida: 1.17.0
+ * Versao do pacote: 1.0.7 | library embutida: 1.17.0
  */
 import groovy.transform.Field
 import java.util.concurrent.ConcurrentHashMap
@@ -658,7 +658,7 @@ state.lastPulseTs = (0..<MAX_INPUTS).collect { 0L }
 sendEvent(name: "numberOfButtons", value: state.inCount)
 migrarMotorPairs() 
 createChildren()
-publicarParesMotor()
+publicarEstadoDeCortina()
 if (device.currentValue("importStatus") == null) {
 int nPref = (0..4).count { settings["motorPar${it + 1}"] } as int
 setImportStatus("nao-importado", nPref
@@ -702,6 +702,7 @@ Set motores = motoresPreCalculado ?: motorOuts()
 int n = (state.outCount ?: MAX_OUTPUTS) as int
 List complemento = (0..<n).findAll { !motores.contains(it) }
 if (!temCortina()) return complemento
+if (!state.lastImportFile) return complemento
 Set relaysCh = ((state.relays ?: []) as List).collect { (it.ch as Integer) } as Set
 return complemento.findAll { relaysCh.contains(it) }
 }
@@ -1077,7 +1078,7 @@ state.relays = ((bloco.relays ?: []) as List).collect {
 [ch: (it.ch as Integer), label: (it.label ?: "") as String,
 room: (it.room ?: "") as String] }
 state.lastImportFile = nome
-publicarParesMotor() 
+publicarEstadoDeCortina() 
 state.redeTemCortina = ((art.gateways ?: []) as List).any { it.type == "mcrl" && ((it.covers ?: []) as List) }
 String meu = ((settings.device_IP_address ?: "") as String).trim()
 String doArq = ((bloco.ip ?: "") as String).trim()
@@ -1124,13 +1125,19 @@ device.removeSetting("motorPairs")
 logWarn("[MIGRAÇÃO] ${legado.size()} par(es) da preferência antiga 'Pares em modo Motor/Persiana' " +
 "viraram toggles individuais. Confira em 'paresMotor' e salve as preferências.")
 }
-private void publicarParesMotor() {
+private void publicarEstadoDeCortina() {
 List pares = (paresDeMotor() as List).sort()
 String v = pares
 ? pares.collect { int i -> "Par ${i + 1} (saídas ${i * 2 + 1} e ${i * 2 + 2})" }.join(" · ")
 : "nenhum — esta caixa está sendo tratada como 100% iluminação"
 sendEvent(name: "paresMotor", value: v,
 descriptionText: "pares de motor reconhecidos: ${v}")
+if (pares && canaisDeLuz().isEmpty()) device.deleteCurrentState("switch")
+if (pares) {
+sendEvent(name: "feedback", value: "otimista",
+descriptionText: "cortina cabeada: o estado publicado é o comandado — " +
+"o MCRL2 não confirma posição real")
+}
 }
 private Set motorOuts() {
 Set out = [] as Set
@@ -1192,12 +1199,6 @@ if (orfaos) {
 logError("[IMPORT] ${orfaos.size()} filho(s) não são saída(s) de iluminação/cortina " +
 "neste arquivo (${orfaos.join(', ')}): nenhum foi removido. Rode limparOrfaos() " +
 "se a remoção for intencional.")
-}
-device.deleteCurrentState("switch")
-if (((state.covers ?: []) as List)) {
-sendEvent(name: "feedback", value: "otimista",
-descriptionText: "cortina cabeada: o estado publicado é o comandado — " +
-"o MCRL2 não confirma posição real")
 }
 return [criados: criados, existentes: (esperados.size() - criados)]
 }
