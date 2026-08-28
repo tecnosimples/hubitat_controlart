@@ -7,7 +7,7 @@
  *
  * Produto licenciado. Distribuido via Hubitat Package Manager.
  * Uso restrito ao hub licenciado. Ver LICENSE no repositorio.
- * Versao do pacote: 1.0.4 | library embutida: 1.17.0
+ * Versao do pacote: 1.0.5 | library embutida: 1.17.0
  */
 import groovy.transform.Field
 import java.util.concurrent.ConcurrentHashMap
@@ -984,6 +984,12 @@ return (int) Math.round(l * 255.0d / 100.0d)
 private void cortinaCmd(cd, int registrador, int valor, String windowShade, boolean stop = false, Integer posicao = null) {
 Integer i = motorIndexFromDni(cd.deviceNetworkId as String)
 if (i == null) { logError("[CMD] DNI de cortina inesperado: ${cd.deviceNetworkId}"); return }
+if (!paresDeMotor().contains(i)) {
+logError("[CMD] RECUSADO: o par ${i + 1} não está mais declarado como motor " +
+"(preferência 'Pares em modo Motor/Persiana' ou arquivo de import). " +
+"Este filho de cortina ficou para trás — rode limparOrfaos() para removê-lo.")
+return
+}
 String mac = state.macFmt
 if (!mac) { logWarn("[CMD] Sem MAC — comando descartado; rodando getmac."); getmac(); return }
 if (!caSend("mdcmd_sendcmd,${mac},${registrador},${valor},${i}")) return
@@ -1251,9 +1257,31 @@ logError("[CONFERIR] ${motivo}")
 setImportStatus("erro", motivo)
 }
 }
+private void limparCortinasSemArquivo() {
+Set<Integer> pares = paresDeMotor()
+List sobrando = []
+getChildDevices().each {
+String dni = it.deviceNetworkId as String
+if (!dni.contains("-COVER-")) return
+Integer i = motorIndexFromDni(dni)
+if (i == null) {
+logWarn("[ÓRFÃO] ${dni} tem '-COVER-' mas o índice não parseia — MANTIDO. " +
+"Remova à mão se for lixo de restore.")
+return
+}
+if (!pares.contains(i)) sobrando << dni
+}
+sobrando.each { String dni ->
+logWarn("[ÓRFÃO] Removendo ${dni} — o par saiu de 'Pares em modo Motor/Persiana'")
+deleteChildDevice(dni)
+}
+logInfo("[ÓRFÃO] " + (sobrando
+? "${sobrando.size()} cortina(s) removida(s) — par desmarcado em 'Pares em modo Motor/Persiana'."
+: "Nenhuma cortina sobrando: os filhos batem com os pares declarados."))
+}
 def limparOrfaos() {
 String nome = ((settings.moduleFile ?: "") as String).trim()
-if (!nome) { logError("[ÓRFÃO] Nenhum arquivo de import configurado."); return }
+if (!nome) { limparCortinasSemArquivo(); return }
 Map r
 try {
 r = orfaosContraArquivo(nome)

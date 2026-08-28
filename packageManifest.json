@@ -1,7 +1,7 @@
 {
-  "packageName": "ControlArt 7Port",
+  "packageName": "ControlArt — Integração Hubitat",
   "author": "TecnoSimples Tecnologia LTDA",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "minimumHEVersion": "2.3.0",
   "dateReleased": "2026-08-28",
   "licenseFile": "https://raw.githubusercontent.com/tecnosimples/hubitat_controlart/main/LICENSE",

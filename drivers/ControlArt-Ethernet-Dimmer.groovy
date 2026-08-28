@@ -7,7 +7,7 @@
  *
  * Produto licenciado. Distribuido via Hubitat Package Manager.
  * Uso restrito ao hub licenciado. Ver LICENSE no repositorio.
- * Versao do pacote: 1.0.4 | library embutida: 1.17.0
+ * Versao do pacote: 1.0.5 | library embutida: 1.17.0
  */
 import groovy.transform.Field
 import java.util.concurrent.ConcurrentHashMap
